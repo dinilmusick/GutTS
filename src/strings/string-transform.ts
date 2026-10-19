@@ -1,0 +1,5 @@
+export function capitalize(value:string):string{return value.length===0?value:value[0]!.toUpperCase()+value.slice(1);}
+export function camelCase(value:string):string{const words=value.trim().split(/[^A-Za-z0-9]+/).filter(Boolean);if(words.length===0)return "";return words[0]!.toLowerCase()+words.slice(1).map(capitalize).join("");}
+export function kebabCase(value:string):string{return value.trim().replace(/([a-z0-9])([A-Z])/g,"$1-$2").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-+|-+$/g,"").toLowerCase();}
+export function snakeCase(value:string):string{return kebabCase(value).replaceAll("-","_");}
+export function truncate(value:string,maxLength:number,suffix="…"):string{if(maxLength<0)throw new RangeError("maxLength must be non-negative");if(value.length<=maxLength)return value;if(suffix.length>=maxLength)return suffix.slice(0,maxLength);return value.slice(0,maxLength-suffix.length)+suffix;}

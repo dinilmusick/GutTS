@@ -1,4 +1,6 @@
-export function hasOwn<T extends object>(value:T,key:PropertyKey):boolean{return Object.prototype.hasOwnProperty.call(value,key);}
-export function pick<T extends object,K extends keyof T>(value:T,keys:readonly K[]):Pick<T,K>{const result={} as Pick<T,K>;for(const key of keys){if(key in value)result[key]=value[key];}return result;}
-export function omit<T extends object,K extends keyof T>(value:T,keys:readonly K[]):Omit<T,K>{const excluded=new Set<PropertyKey>(keys);const result={} as Omit<T,K>;for(const key of Reflect.ownKeys(value) as (keyof T)[]){if(!excluded.has(key))Object.defineProperty(result,key,Object.getOwnPropertyDescriptor(value,key)!);}return result;}
-export function isPlainObject(value:unknown):value is Record<string,unknown>{if(value===null||typeof value!=="object")return false;const prototype=Object.getPrototypeOf(value);return prototype===Object.prototype||prototype===null;}
+import {has as lodashHas, isPlainObject as lodashIsPlainObject, omit as lodashOmit, pick as lodashPick} from "lodash-es";
+
+export function hasOwn<T extends object>(value:T,key:PropertyKey):boolean{return lodashHas(value,key);}
+export function pick<T extends object,K extends keyof T>(value:T,keys:readonly K[]):Pick<T,K>{return lodashPick(value,keys as K[]);}
+export function omit<T extends object,K extends keyof T>(value:T,keys:readonly K[]):Omit<T,K>{return lodashOmit(value,keys as K[]);}
+export function isPlainObject(value:unknown):value is Record<string,unknown>{return lodashIsPlainObject(value);}

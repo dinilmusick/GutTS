@@ -1,0 +1,32 @@
+name: GutTS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Build
+        run: pnpm run build
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Test
+        run: pnpm run test
+      - name: Inspect package
+        run: npm pack --dry-run

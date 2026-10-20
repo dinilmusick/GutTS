@@ -94,6 +94,8 @@ jobs:
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Publish to npm using Trusted Publishing
+      - name: Publish to npm using Trusted Publishing (or the one-time NPM_TOKEN bootstrap)
         if: (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && steps.registry.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public

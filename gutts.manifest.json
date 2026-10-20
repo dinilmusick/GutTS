@@ -1,0 +1,27 @@
+{
+  "$schema": "https://skipo.dev/schemas/gutts-manifest.v1.json",
+  "package": "@dinilmusick/gutts",
+  "packageType": "global-utility",
+  "version": "0.1.2",
+  "promotion": {
+    "eligible": true,
+    "scope": "global",
+    "requiresExplicitEvidence": true
+  },
+  "categories": [
+    "json",
+    "strings",
+    "arrays",
+    "objects",
+    "numbers",
+    "urls"
+  ],
+  "exports": [
+    "@dinilmusick/gutts/json",
+    "@dinilmusick/gutts/strings",
+    "@dinilmusick/gutts/arrays",
+    "@dinilmusick/gutts/objects",
+    "@dinilmusick/gutts/numbers",
+    "@dinilmusick/gutts/urls"
+  ]
+}

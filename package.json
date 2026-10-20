@@ -13,7 +13,8 @@
     "./arrays": "./dist/arrays/array-concepts.js",
     "./objects": "./dist/objects/object-concepts.js",
     "./numbers": "./dist/numbers/number-concepts.js",
-    "./urls": "./dist/urls/url-concepts.js"
+    "./urls": "./dist/urls/url-concepts.js",
+    "./gutts.manifest.json": "./gutts.manifest.json"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -29,5 +30,8 @@
     "@types/validator": "^13.12.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
-  }
+  },
+  "files": [
+    "gutts.manifest.json"
+  ]
 }

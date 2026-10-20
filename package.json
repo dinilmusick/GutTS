@@ -1,7 +1,7 @@
 {
   "name": "@dinilmusick/gutts",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Global Utilities for TypeScript applications.",
   "type": "module",
   "main": "./dist/index.js",
@@ -33,5 +33,13 @@
   },
   "files": [
     "gutts.manifest.json"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dinilmusick/GutTS.git"
+  }
 }

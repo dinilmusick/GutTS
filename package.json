@@ -13,7 +13,8 @@
     "./arrays": "./dist/arrays/array-concepts.js",
     "./objects": "./dist/objects/object-concepts.js",
     "./numbers": "./dist/numbers/number-concepts.js",
-    "./urls": "./dist/urls/url-concepts.js"
+    "./urls": "./dist/urls/url-concepts.js",
+    "./gutts.manifest.json": "./gutts.manifest.json"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -33,7 +34,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "gutts.manifest.json"
   ],
   "publishConfig": {
     "access": "public",

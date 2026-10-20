@@ -1,7 +1,7 @@
 {
   "name": "@dinilmusick/gutts",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Global Utilities for TypeScript applications.",
   "type": "module",
   "main": "./dist/index.js",
@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "lodash-es": "^4.17.21",
@@ -29,5 +30,19 @@
     "@types/validator": "^13.12.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
-  }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dinilmusick/GutTS.git"
+  },
+  "license": "MIT"
 }

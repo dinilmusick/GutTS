@@ -155,4 +155,12 @@ jobs:
 
       - name: Publish to npm using Trusted Publishing (or the one-time NPM_TOKEN bootstrap)
         if: (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && steps.registry.outputs.exists == 'false'
-        run: npm publish --access public --provenance=false
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            npm publish --access public --provenance=false
+          else
+            npm publish --access public --provenance=false
+          fi

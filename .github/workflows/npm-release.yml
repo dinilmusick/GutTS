@@ -90,23 +90,6 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Bump patch version when this version was already published
-        if: github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.publish)
-        shell: bash
-        run: |
-          set -euo pipefail
-          PACKAGE_NAME="$(node -p "require('./package.json').name")"
-          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
-          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
-            npm version patch --no-git-tag-version
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(release): bump GutTS package version [skip ci]"
-            git push origin HEAD:main
-          fi
       - name: Validate package metadata
         id: package
         shell: bash

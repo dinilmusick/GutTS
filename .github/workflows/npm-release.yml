@@ -53,6 +53,43 @@ jobs:
         run: pnpm run test
       - name: Inspect package contents
         run: npm pack --dry-run
+      - name: Apply Krusbl changeset version and consume release intent
+        id: changeset
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUMP=""
+          node --input-type=module <<'NODE' > "$RUNNER_TEMP/krusbl-bump"
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const order = { patch: 1, minor: 2, major: 3 };
+          let selected = '';
+          if (fs.existsSync('.changeset')) {
+            for (const file of fs.readdirSync('.changeset').filter(f => f.endsWith('.md') && f !== 'README.md')) {
+              const text = fs.readFileSync('.changeset/' + file, 'utf8');
+              const front = text.split('---').slice(1, 2)[0] || '';
+              const line = front.split('\n').find(value => value.includes(pkg.name));
+              const match = line?.match(/:\s*(major|minor|patch)\s*$/);
+              if (match && (!selected || order[match[1]] > order[selected])) selected = match[1];
+            }
+          }
+          process.stdout.write(selected);
+          NODE
+          BUMP="$(cat "$RUNNER_TEMP/krusbl-bump")"
+          if [ -n "$BUMP" ]; then
+            npm version "$BUMP" --no-git-tag-version
+            find .changeset -maxdepth 1 -type f -name '*.md' ! -name README.md -delete
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json pnpm-lock.yaml package-lock.json yarn.lock .changeset 2>/dev/null || true
+            git commit -m "chore(release): apply Krusbl changeset [skip ci]"
+            git push origin HEAD:main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Bump patch version when this version was already published
         if: github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.publish)
         shell: bash
@@ -70,6 +107,28 @@ jobs:
             git commit -m "chore(release): bump GutTS package version [skip ci]"
             git push origin HEAD:main
           fi
+      - name: Write Krusbl release attestation
+        if: github.event_name == 'workflow_run' && steps.changeset.outputs.changed == 'true'
+        shell: bash
+        env:
+          SOURCE_COMMIT: \${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const sourceCommit = process.env.SOURCE_COMMIT;
+          if (!/^[0-9a-f]{40}$/i.test(sourceCommit)) throw new Error('Missing immutable source commit for release attestation');
+          fs.writeFileSync('.krusbl-release-attestation.json', JSON.stringify({
+            schema: 1,
+            packageName: pkg.name,
+            version: pkg.version,
+            sourceCommit,
+            releaseWorkflow: process.env.GITHUB_WORKFLOW,
+            workflowRunId: process.env.GITHUB_RUN_ID,
+          }, null, 2) + '\n');
+          NODE
+
       - name: Validate package metadata
         id: package
         shell: bash

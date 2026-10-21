@@ -35,11 +35,13 @@
   "files": [
     "dist",
     "README.md",
-    "gutts.manifest.json"
+    "gutts.manifest.json",
+    ".krusbl-release-attestation.json"
   ],
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
   },
   "packageManager": "pnpm@9.15.0",
   "repository": {

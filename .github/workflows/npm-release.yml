@@ -107,28 +107,6 @@ jobs:
             git commit -m "chore(release): bump GutTS package version [skip ci]"
             git push origin HEAD:main
           fi
-      - name: Write Krusbl release attestation
-        if: github.event_name == 'workflow_run' && steps.changeset.outputs.changed == 'true'
-        shell: bash
-        env:
-          SOURCE_COMMIT: \${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          const sourceCommit = process.env.SOURCE_COMMIT;
-          if (!/^[0-9a-f]{40}$/i.test(sourceCommit)) throw new Error('Missing immutable source commit for release attestation');
-          fs.writeFileSync('.krusbl-release-attestation.json', JSON.stringify({
-            schema: 1,
-            packageName: pkg.name,
-            version: pkg.version,
-            sourceCommit,
-            releaseWorkflow: process.env.GITHUB_WORKFLOW,
-            workflowRunId: process.env.GITHUB_RUN_ID,
-          }, null, 2) + '\n');
-          NODE
-
       - name: Validate package metadata
         id: package
         shell: bash
@@ -153,8 +131,32 @@ jobs:
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Write Krusbl release attestation
+        if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && steps.registry.outputs.exists == 'false') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        shell: bash
+        env:
+          SOURCE_COMMIT: \${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const sourceCommit = process.env.SOURCE_COMMIT;
+          if (!/^[0-9a-f]{40}$/i.test(sourceCommit)) throw new Error('Missing immutable source commit for release attestation');
+          fs.writeFileSync('.krusbl-release-attestation.json', JSON.stringify({
+            schema: 1,
+            packageName: pkg.name,
+            version: pkg.version,
+            sourceCommit,
+            releaseWorkflow: process.env.GITHUB_WORKFLOW,
+            workflowRunId: process.env.GITHUB_RUN_ID,
+          }, null, 2) + '\n');
+          NODE
+
       - name: Publish to npm using Trusted Publishing (or the one-time NPM_TOKEN bootstrap)
         if: (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && steps.registry.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public

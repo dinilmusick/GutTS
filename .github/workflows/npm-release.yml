@@ -135,7 +135,7 @@ jobs:
         if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && steps.registry.outputs.exists == 'false') || (github.event_name == 'workflow_dispatch' && inputs.publish)
         shell: bash
         env:
-          SOURCE_COMMIT: \${{ github.event.workflow_run.head_sha || github.sha }}
+          SOURCE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -155,8 +155,6 @@ jobs:
 
       - name: Publish to npm using Trusted Publishing (or the one-time NPM_TOKEN bootstrap)
         if: (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && steps.registry.outputs.exists == 'false'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public

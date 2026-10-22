@@ -36,7 +36,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org/
       - name: Update npm CLI for OIDC Trusted Publishing
         run: npm install --global npm@latest
       - name: Set up pnpm
@@ -138,12 +137,10 @@ jobs:
 
       - name: Publish to npm using Trusted Publishing
         if: (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && steps.registry.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ""
         run: |
           set -euo pipefail
-          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::error::NODE_AUTH_TOKEN is set. Trusted Publishing requires OIDC authentication without an npm token."
-            exit 1
-          fi
           npm publish --access public
       - name: Notify Skipo after successful upstream publication
         if: success() && steps.registry.outputs.exists == 'false' && (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'schedule' && steps.updates.outputs.changed == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish))

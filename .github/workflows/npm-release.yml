@@ -121,6 +121,10 @@ jobs:
           SOURCE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
+          if [ -z "${SYNC_TOKEN:-}" ]; then
+            echo "ECOSYSTEM_SYNC_TOKEN is not configured; the scheduled dependency-sync fallback remains active."
+            exit 0
+          fi
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -148,7 +152,7 @@ jobs:
             npm publish --access public --provenance=false
           fi
 - name: Notify Skipo after successful upstream publication
-        if: success() && env.SYNC_TOKEN != '' && steps.registry.outputs.exists == 'false' && (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'schedule' && steps.updates.outputs.changed == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish))
+        if: success() && steps.registry.outputs.exists == 'false' && (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'schedule' && steps.updates.outputs.changed == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish))
         env:
           SYNC_TOKEN: ${{ secrets.ECOSYSTEM_SYNC_TOKEN }}
         shell: bash

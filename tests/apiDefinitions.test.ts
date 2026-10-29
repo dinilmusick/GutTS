@@ -3,8 +3,8 @@ import {guttsApiById, guttsApiDefinitions} from "../src/api/index.js";
 
 describe("GutTS semantic API definitions", () => {
   it("defines every currently exported runtime API", () => {
-    expect(guttsApiDefinitions).toHaveLength(31);
-    expect(new Set(guttsApiDefinitions.map((api) => api.name)).size).toBe(31);
+    expect(guttsApiDefinitions).toHaveLength(33);
+    expect(new Set(guttsApiDefinitions.map((api) => api.name)).size).toBe(33);
     expect(guttsApiDefinitions.every((api) => api.id.startsWith("gutts."))).toBe(true);
   });
 

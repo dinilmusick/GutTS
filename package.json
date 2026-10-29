@@ -14,6 +14,7 @@
     "./objects": "./dist/objects/object-concepts.js",
     "./numbers": "./dist/numbers/number-concepts.js",
     "./urls": "./dist/urls/url-concepts.js",
+    "./api": "./dist/api/index.js",
     "./gutts.manifest.json": "./gutts.manifest.json"
   },
   "scripts": {

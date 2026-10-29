@@ -6,15 +6,29 @@ describe("ModelResidency", () => {
     const load = vi.fn(async () => ({id: "model"}));
     const unload = vi.fn(async () => {});
     const residency = new ModelResidency<{id: string}>();
+    let releaseOperation!: () => void;
+    const operationReleased = new Promise<void>((resolve) => {
+      releaseOperation = resolve;
+    });
 
-    const [first, second] = await Promise.all([
-      residency.run(load, unload, async (model) => model.id),
-      residency.run(load, unload, async (model) => model.id),
-    ]);
+    const first = residency.run(load, unload, async (model) => {
+      expect(model.id).toBe("model");
+      await operationReleased;
+      return "first";
+    });
+    const second = residency.run(load, unload, async (model) => {
+      expect(model.id).toBe("model");
+      return "second";
+    });
 
-    expect(first).toBe("model");
-    expect(second).toBe("model");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(residency.activeUsers).toBe(2);
     expect(load).toHaveBeenCalledTimes(1);
+    expect(unload).not.toHaveBeenCalled();
+
+    releaseOperation();
+    await expect(Promise.all([first, second])).resolves.toEqual(["first", "second"]);
     expect(unload).toHaveBeenCalledTimes(1);
     expect(residency.isLoaded).toBe(false);
     expect(residency.activeUsers).toBe(0);

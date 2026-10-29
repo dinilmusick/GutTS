@@ -1,6 +1,6 @@
 import {defineApi} from "../../api/define-api.js";
 import {ModelLibrary} from "../model-library.js";
-import type {ModelRuntime} from "../model-types.js";
+import type {ModelRuntime} from "../model-types.js";\nimport {smolLM2Runtime} from "../runtimes/transformers.js";
 
 export type SmolLM2Model = {
   generate(input: {prompt: string; maxNewTokens?: number}): Promise<string>;
@@ -39,7 +39,7 @@ export const smolLM2GenerateApi = defineApi({
 });
 
 export class SmolLM2 extends ModelLibrary<SmolLM2Model> {
-  constructor(runtime: ModelRuntime<SmolLM2Model>) {
+  constructor(runtime: ModelRuntime<SmolLM2Model> = smolLM2Runtime) {
     super(smolLM2Metadata, runtime);
   }
 

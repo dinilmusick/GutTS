@@ -17,20 +17,21 @@ export class ModelResidency<TModel> {
   ): Promise<T> {
     await this.waitForUnload();
 
-    if (!this.entry) {
+    let entry = this.entry;
+    if (!entry) {
       const model = await this.loadOnce(load);
-      if (!this.entry) this.entry = {model, users: 0};
+      entry = this.entry ?? {model, users: 0};
+      this.entry = entry;
     }
 
-    this.entry.users += 1;
+    entry.users += 1;
     try {
-      return await operation(this.entry.model);
+      return await operation(entry.model);
     } finally {
-      this.entry.users -= 1;
-      if (this.entry.users === 0) {
-        const model = this.entry.model;
+      entry.users -= 1;
+      if (entry.users === 0 && this.entry === entry) {
         this.entry = undefined;
-        this.unloading = unload(model).finally(() => {
+        this.unloading = unload(entry.model).finally(() => {
           this.unloading = undefined;
         });
         await this.unloading;

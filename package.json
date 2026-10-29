@@ -15,7 +15,9 @@
     "./numbers": "./dist/numbers/number-concepts.js",
     "./urls": "./dist/urls/url-concepts.js",
     "./api": "./dist/api/index.js",
-    "./gutts.manifest.json": "./gutts.manifest.json"
+    "./gutts.manifest.json": "./gutts.manifest.json",
+    "./models": "./dist/models/index.js",
+    "./models/*": "./dist/models/*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

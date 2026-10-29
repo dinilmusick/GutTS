@@ -2,6 +2,7 @@ import type {ModelRuntime} from "../model-types.js";
 import type {SmolLM2Model} from "../smollm2/index.js";
 import type {MiniLMModel} from "../minilm/index.js";
 import type {EttinRerankerModel} from "../ettin/index.js";
+import {loadEttinHeadWeights, computeEttinHeadScores} from "./ettin-head.js";
 
 type DisposablePipeline = {
   (input: unknown, options?: Record<string, unknown>): Promise<unknown>;
@@ -95,12 +96,13 @@ export const miniLMRuntime: ModelRuntime<MiniLMModel> = {
 export const ettinRuntime: ModelRuntime<EttinRerankerModel> = {
   async load(metadata) {
     await ensureOrtInputMetadataPolyfill();
-    const {AutoTokenizer, AutoModelForSequenceClassification} = await import("@huggingface/transformers");
-    const targetModel = metadata.modelUri?.includes("ettin")
-      ? "Xenova/ms-marco-MiniLM-L-6-v2"
-      : (metadata.modelUri ?? "Xenova/ms-marco-MiniLM-L-6-v2");
-    const tokenizer = await AutoTokenizer.from_pretrained(targetModel);
-    const model = await AutoModelForSequenceClassification.from_pretrained(targetModel);
+    const {AutoTokenizer, AutoModel} = await import("@huggingface/transformers");
+    const targetModel = metadata.modelUri ?? "cross-encoder/ettin-reranker-17m-v1";
+    const [tokenizer, model, headWeights] = await Promise.all([
+      AutoTokenizer.from_pretrained(targetModel),
+      AutoModel.from_pretrained(targetModel),
+      loadEttinHeadWeights(targetModel),
+    ]);
     return {
       rerank: async ({query, candidates}) => {
         if (candidates.length === 0) return [];
@@ -110,9 +112,9 @@ export const ettinRuntime: ModelRuntime<EttinRerankerModel> = {
           truncation: true,
         });
         const outputs = await model(inputs);
-        const logits = (outputs as {logits?: {data?: ArrayLike<number>}}).logits?.data;
-        if (!logits) throw new Error("Ettin runtime returned an invalid result.");
-        return Array.from(logits).map((x) => 1 / (1 + Math.exp(-x)));
+        const lastHidden = (outputs as {last_hidden_state?: {dims: readonly number[]; data: Float32Array}}).last_hidden_state;
+        if (!lastHidden) throw new Error(`Ettin runtime returned an invalid result for ${targetModel}.`);
+        return computeEttinHeadScores(lastHidden, headWeights);
       },
       dispose: async () => {
         await model.dispose?.();

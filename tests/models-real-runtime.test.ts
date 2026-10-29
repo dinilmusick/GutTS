@@ -1,5 +1,14 @@
 import {describe, expect, it} from "vitest";
-import {SmolLM2, Needle3, Whistle, MiniLM, EttinReranker17M} from "../src/models/index.js";
+import {
+  SmolLM2,
+  Needle3,
+  Whistle,
+  MiniLM,
+  EttinReranker17M,
+  EttinReranker32M,
+  EttinReranker68M,
+  EttinReranker150M,
+} from "../src/models/index.js";
 
 describe("Real Model Runtime Verification", () => {
   it("SmolLM2 generates text and manages residency", async () => {
@@ -36,16 +45,25 @@ describe("Real Model Runtime Verification", () => {
     expect(minilm.residency.isLoaded).toBe(false);
   }, 60000);
 
-  it("EttinReranker17M ranks candidates by relevance", async () => {
-    const ettin = new EttinReranker17M();
-    expect(ettin.residency.isLoaded).toBe(false);
-    const scores = await ettin.rerank({
+  it("Ettin reranker models resolve to intended model identifiers and rank correctly", async () => {
+    const ettin17 = new EttinReranker17M();
+    const ettin32 = new EttinReranker32M();
+    const ettin68 = new EttinReranker68M();
+    const ettin150 = new EttinReranker150M();
+
+    expect(ettin17.metadata.modelUri).toBe("cross-encoder/ettin-reranker-17m-v1");
+    expect(ettin32.metadata.modelUri).toBe("cross-encoder/ettin-reranker-32m-v1");
+    expect(ettin68.metadata.modelUri).toBe("cross-encoder/ettin-reranker-68m-v1");
+    expect(ettin150.metadata.modelUri).toBe("cross-encoder/ettin-reranker-150m-v1");
+
+    expect(ettin17.residency.isLoaded).toBe(false);
+    const scores = await ettin17.rerank({
       query: "cat",
       candidates: ["feline kitten", "dump truck"],
     });
     expect(scores).toHaveLength(2);
     expect(scores[0]).toBeGreaterThan(scores[1]!);
-    expect(ettin.residency.isLoaded).toBe(false);
+    expect(ettin17.residency.isLoaded).toBe(false);
   }, 60000);
 
   it("Whistle transcribes audio buffer without error", async () => {

@@ -14,7 +14,8 @@
     "arrays",
     "objects",
     "numbers",
-    "urls"
+    "urls",
+    "api"
   ],
   "exports": [
     "@dinilmusick/gutts/json",
@@ -22,6 +23,7 @@
     "@dinilmusick/gutts/arrays",
     "@dinilmusick/gutts/objects",
     "@dinilmusick/gutts/numbers",
-    "@dinilmusick/gutts/urls"
+    "@dinilmusick/gutts/urls",
+    "@dinilmusick/gutts/api"
   ]
 }

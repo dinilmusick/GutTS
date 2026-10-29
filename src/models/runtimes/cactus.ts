@@ -29,7 +29,7 @@ export const cactusNeedle3Runtime: ModelRuntime<Needle3Model> = {
     };
   },
   async unload(model) {
-    await model.close();
+    await model.close?.();
   },
 };
 
@@ -49,6 +49,6 @@ export const cactusWhistleRuntime: ModelRuntime<WhistleModel> = {
     };
   },
   async unload(model) {
-    await model.close();
+    await model.close?.();
   },
 };

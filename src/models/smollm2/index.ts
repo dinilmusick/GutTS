@@ -1,9 +1,11 @@
 import {defineApi} from "../../api/define-api.js";
 import {ModelLibrary} from "../model-library.js";
-import type {ModelRuntime} from "../model-types.js";\nimport {smolLM2Runtime} from "../runtimes/transformers.js";
+import type {ModelRuntime} from "../model-types.js";
+import {smolLM2Runtime} from "../runtimes/transformers.js";
 
 export type SmolLM2Model = {
   generate(input: {prompt: string; maxNewTokens?: number}): Promise<string>;
+  dispose?: () => Promise<void>;
 };
 
 export const smolLM2Metadata = {

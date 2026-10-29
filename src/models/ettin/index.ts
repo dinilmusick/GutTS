@@ -1,13 +1,20 @@
 import {defineApi} from "../../api/define-api.js";
-import {ModelLibrary} from "../model-library.js";\nimport type {ModelRuntime} from "../model-types.js";\nimport {ettinRuntime} from "../runtimes/transformers.js";
+import {ModelLibrary} from "../model-library.js";
+import type {ModelRuntime} from "../model-types.js";
+import {ettinRuntime} from "../runtimes/transformers.js";
 
 export type EttinRerankerModel = {
   rerank(input: {query: string; candidates: readonly string[]}): Promise<readonly number[]>;
+  dispose?: () => Promise<void>;
 };
 
 const defineEttin = (id: string, name: string, parameters: number, description: string) => ({
   id, name, provider: "Hugging Face", version: String(parameters),
-  description, size: {value: parameters * 1_000_000, unit: "parameters" as const, qualifier: "parameters" as const},
+  description,
+  examples: ["rank search results", "order retrieved documents by relevance"],
+  whenToUse: "Use for cross-encoder reranking when candidate texts must be sorted by semantic relevance.",
+  avoidWhen: "Avoid for text generation, embeddings, or transcription.",
+  size: {value: parameters * 1_000_000, unit: "parameters" as const, qualifier: "parameters" as const},
   capabilities: ["reranking", "relevance-scoring"],
   input: "Query and candidate texts", output: "Candidate relevance scores",
   runtime: "ModelRuntime adapter", modelUri: `cross-encoder/ettin-reranker-${parameters}m-v1`,

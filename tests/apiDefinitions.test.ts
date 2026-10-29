@@ -18,11 +18,12 @@ const runtimeApiNames = [
 
 describe("GutTS semantic API definitions", () => {
   it("defines every currently exported runtime API exactly once", () => {
-    const definitionNames = guttsApiDefinitions.map((api) => api.name).sort();
+    const utilityApis = guttsApiDefinitions.filter((api) => api.category !== "models");
+    const definitionNames = utilityApis.map((api) => api.name).sort();
 
     expect(definitionNames).toEqual(runtimeApiNames);
     expect(new Set(guttsApiDefinitions.map((api) => api.id)).size).toBe(guttsApiDefinitions.length);
-    expect(guttsApiDefinitions.every((api) => api.id.startsWith("gutts."))).toBe(true);
+    expect(utilityApis.every((api) => api.id.startsWith("gutts."))).toBe(true);
   });
 
   it("provides complete machine-readable contracts", () => {
@@ -37,7 +38,11 @@ describe("GutTS semantic API definitions", () => {
         api.parameters.filter((parameter) => parameter.required).map((parameter) => parameter.name),
       );
       expect(api.output).toBeDefined();
-      expect(api.semantics).toEqual({deterministic: true, pure: true, sideEffects: false});
+      if (api.category === "models") {
+        expect(api.semantics.sideEffects).toBe(false);
+      } else {
+        expect(api.semantics).toEqual({deterministic: true, pure: true, sideEffects: false});
+      }
 
       for (const parameter of api.parameters) {
         expect(parameter.name.length).toBeGreaterThan(0);

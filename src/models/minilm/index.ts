@@ -1,8 +1,11 @@
 import {defineApi} from "../../api/define-api.js";
-import {ModelLibrary} from "../model-library.js";\nimport type {ModelRuntime} from "../model-types.js";\nimport {miniLMRuntime} from "../runtimes/transformers.js";
+import {ModelLibrary} from "../model-library.js";
+import type {ModelRuntime} from "../model-types.js";
+import {miniLMRuntime} from "../runtimes/transformers.js";
 
 export type MiniLMModel = {
   similarity(input: {left: string; right: string}): Promise<number>;
+  dispose?: () => Promise<void>;
 };
 
 export const miniLML6Metadata = {

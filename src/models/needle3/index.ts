@@ -1,9 +1,12 @@
 import {defineApi} from "../../api/define-api.js";
-import {ModelLibrary} from "../model-library.js";\nimport type {ModelRuntime} from "../model-types.js";\nimport {cactusNeedle3Runtime} from "../runtimes/cactus.js";
+import {ModelLibrary} from "../model-library.js";
+import type {ModelRuntime} from "../model-types.js";
+import {cactusNeedle3Runtime} from "../runtimes/cactus.js";
 
 export type Needle3Model = {
   complete(input: {prompt: string; tools?: readonly unknown[]; schema?: unknown}): Promise<unknown>;
-  embed(input: string): Promise<readonly number[]>;
+  embed(input: string): Promise<readonly number[] | Float32Array>;
+  close?: () => Promise<void>;
 };
 
 export const needle3Metadata = {
@@ -46,7 +49,7 @@ export class Needle3 extends ModelLibrary<Needle3Model> {
     return this.withModel((model) => model.complete(input));
   }
 
-  embed(input: string): Promise<readonly number[]> {
+  embed(input: string): Promise<readonly number[] | Float32Array> {
     return this.withModel((model) => model.embed(input));
   }
 }

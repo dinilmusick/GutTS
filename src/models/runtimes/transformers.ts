@@ -32,7 +32,7 @@ export const smolLM2Runtime: ModelRuntime<SmolLM2Model> = {
     };
   },
   async unload(model) {
-    await model.dispose();
+    await model.dispose?.();
   },
 };
 
@@ -51,7 +51,7 @@ export const miniLMRuntime: ModelRuntime<MiniLMModel> = {
     };
   },
   async unload(model) {
-    await model.dispose();
+    await model.dispose?.();
   },
 };
 
@@ -75,7 +75,7 @@ export const ettinRuntime: ModelRuntime<EttinRerankerModel> = {
     };
   },
   async unload(model) {
-    await model.dispose();
+    await model.dispose?.();
   },
 };
 
@@ -93,9 +93,11 @@ function cosine(left: Float32Array, right: Float32Array): number {
   let leftNorm = 0;
   let rightNorm = 0;
   for (let i = 0; i < left.length; i += 1) {
-    dot += left[i] * right[i];
-    leftNorm += left[i] * left[i];
-    rightNorm += right[i] * right[i];
+    const l = left[i] ?? 0;
+    const r = right[i] ?? 0;
+    dot += l * r;
+    leftNorm += l * l;
+    rightNorm += r * r;
   }
   return dot / Math.sqrt(leftNorm * rightNorm);
 }

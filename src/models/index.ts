@@ -4,3 +4,5 @@ export {ModelLibrary} from "./model-library.js";
 export {Needle3, needle3CompleteApi, needle3Metadata} from "./needle3/index.js";
 export {SmolLM2, smolLM2GenerateApi, smolLM2Metadata} from "./smollm2/index.js";
 export {Whistle, whistleTranscribeApi, whistleMetadata} from "./whistle/index.js";
+export {EttinReranker, ettinRerankApi, ettinReranker17MMetadata, ettinReranker32MMetadata, ettinReranker68MMetadata, ettinReranker150MMetadata} from "./ettin/index.js";
+export {MiniLM, miniLMSimilarityApi, miniLML4Metadata, miniLML6Metadata} from "./minilm/index.js";

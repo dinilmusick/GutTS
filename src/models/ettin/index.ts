@@ -1,5 +1,5 @@
 import {defineApi} from "../../api/define-api.js";
-import {ModelLibrary} from "../model-library.js";
+import {ModelLibrary} from "../model-library.js";\nimport type {ModelRuntime} from "../model-types.js";\nimport {ettinRuntime} from "../runtimes/transformers.js";
 
 export type EttinRerankerModel = {
   rerank(input: {query: string; candidates: readonly string[]}): Promise<readonly number[]>;
@@ -33,7 +33,7 @@ export const ettinRerankApi = defineApi({
 });
 
 export class EttinReranker extends ModelLibrary<EttinRerankerModel> {
-  constructor(readonly modelMetadata: typeof ettinReranker17MMetadata, runtime: import("../model-types.js").ModelRuntime<EttinRerankerModel>) {
+  constructor(readonly modelMetadata: typeof ettinReranker17MMetadata, runtime: ModelRuntime<EttinRerankerModel> = ettinRuntime) {
     super(modelMetadata, runtime);
   }
 

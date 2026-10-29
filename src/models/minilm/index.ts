@@ -5,33 +5,24 @@ export type MiniLMModel = {
   similarity(input: {left: string; right: string}): Promise<number>;
 };
 
-export const miniLML4Metadata = {
-  id: "model.minilm-l4-v2",
-  name: "MiniLM-L4-v2",
+export const miniLML6Metadata = {
+  id: "model.minilm-l6-v2",
+  name: "MiniLM-L6-v2",
   provider: "Sentence Transformers",
-  version: "L4-v2",
-  description: "Tiny sentence embedding model for semantic similarity.",
-  size: {value: 19, unit: "params" as const, qualifier: "parameters" as const},
+  version: "L6-v2",
+  description: "Compact sentence embedding model for semantic similarity.",
+  size: {value: 22_700_000, unit: "parameters" as const, qualifier: "parameters" as const},
   capabilities: ["embeddings", "semantic-similarity"],
   input: "Two text strings",
   output: "Similarity score",
   runtime: "ModelRuntime adapter",
-  modelUri: "sentence-transformers/all-MiniLM-L4-v2",
+  modelUri: "sentence-transformers/all-MiniLM-L6-v2",
   license: "Apache-2.0",
 } as const;
 
-export const miniLML6Metadata = {
-  ...miniLML4Metadata,
-  id: "model.minilm-l6-v2",
-  name: "MiniLM-L6-v2",
-  version: "L6-v2",
-  size: {value: 23, unit: "params" as const, qualifier: "parameters" as const},
-  modelUri: "sentence-transformers/all-MiniLM-L6-v2",
-} as const;
-
 export const miniLMSimilarityApi = defineApi({
-  id: "model.minilm.similarity",
-  name: "MiniLM.similarity",
+  id: "model.minilm-l6-v2.similarity",
+  name: "MiniLM-L6-v2.similarity",
   category: "models",
   description: "Compute semantic similarity between two texts.",
   parameters: [
@@ -43,8 +34,8 @@ export const miniLMSimilarityApi = defineApi({
 });
 
 export class MiniLM extends ModelLibrary<MiniLMModel> {
-  constructor(readonly modelMetadata: typeof miniLML4Metadata, runtime: import("../model-types.js").ModelRuntime<MiniLMModel>) {
-    super(modelMetadata, runtime);
+  constructor(runtime: import("../model-types.js").ModelRuntime<MiniLMModel>) {
+    super(miniLML6Metadata, runtime);
   }
 
   similarity(input: {left: string; right: string}): Promise<number> {

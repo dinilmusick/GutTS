@@ -2,6 +2,8 @@ import {describe, expect, it} from "vitest";
 import {
   ettinRerankApi,
   guttsApiById,
+  guttsModelById,
+  guttsModelDefinitions,
   miniLMSimilarityApi,
   needle3CompleteApi,
   smolLM2GenerateApi,
@@ -20,6 +22,19 @@ describe("model API contracts", () => {
       expect(guttsApiById[api.id]).toBe(api);
       expect(api.inputSchema.type).toBe("object");
       expect(api.description.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+
+describe("model metadata registry", () => {
+  it("contains named models with selection guidance", () => {
+    expect(guttsModelDefinitions.length).toBe(8);
+    for (const model of guttsModelDefinitions) {
+      expect(guttsModelById[model.id]).toBe(model);
+      expect(model.whenToUse.length).toBeGreaterThan(0);
+      expect(model.avoidWhen.length).toBeGreaterThan(0);
+      expect(model.examples.length).toBeGreaterThan(0);
     }
   });
 });

@@ -1,6 +1,6 @@
 import {guttsApiById} from './api-registry.js';
 import {compact,unique,chunk,flatten,last} from '../arrays/array-operations.js';
-import {isJsonValue,parseJson,tryParseJson,stringifyJson} from '../json/index.js';
+import {isJsonValue,parseJson,tryParseJson,stringifyJson} from '../json/json-concepts.js';
 import {clamp,inRange,roundTo,isFiniteNumber,sum} from '../numbers/number-operations.js';
 import {hasOwn,pick,omit,isPlainObject} from '../objects/object-operations.js';
 import {isBlank,isNonBlank,isEmail,startsWithAny,endsWithAny} from '../strings/string-predicates.js';

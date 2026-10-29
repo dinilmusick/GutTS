@@ -1,10 +1,14 @@
+export type ModelSize =
+  | {value: number; unit: "MB" | "GB" | "params"; qualifier: "artifact" | "parameters"}
+  | {min: number; max: number; unit: "MB" | "GB" | "params"; qualifier: "range"};
+
 export type ModelMetadata = {
   id: string;
   name: string;
   provider: string;
   version: string;
   description: string;
-  size: {value: number; unit: "MB" | "GB" | "params"; qualifier: "artifact" | "parameters" | "range"};
+  size: ModelSize;
   capabilities: readonly string[];
   input: string;
   output: string;

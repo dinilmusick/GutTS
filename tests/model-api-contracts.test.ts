@@ -3,7 +3,7 @@ import {
   ettinRerankApi,
   guttsApiById,
   guttsModelById,
-  guttsModelDefinitions,
+  guttsModelDefinitions,\n  EttinReranker17M,\n  EttinReranker32M,\n  EttinReranker68M,\n  EttinReranker150M,\n  MiniLM,\n  Needle3,\n  SmolLM2,\n  Whistle,
   miniLMSimilarityApi,
   needle3CompleteApi,
   smolLM2GenerateApi,
@@ -36,5 +36,19 @@ describe("model metadata registry", () => {
       expect(model.avoidWhen.length).toBeGreaterThan(0);
       expect(model.examples.length).toBeGreaterThan(0);
     }
+  });
+});
+
+
+describe("named model libraries", () => {
+  it("construct without runtime configuration", () => {
+    expect(new SmolLM2()).toBeInstanceOf(SmolLM2);
+    expect(new Needle3()).toBeInstanceOf(Needle3);
+    expect(new Whistle()).toBeInstanceOf(Whistle);
+    expect(new MiniLM()).toBeInstanceOf(MiniLM);
+    expect(new EttinReranker17M()).toBeInstanceOf(EttinReranker17M);
+    expect(new EttinReranker32M()).toBeInstanceOf(EttinReranker32M);
+    expect(new EttinReranker68M()).toBeInstanceOf(EttinReranker68M);
+    expect(new EttinReranker150M()).toBeInstanceOf(EttinReranker150M);
   });
 });

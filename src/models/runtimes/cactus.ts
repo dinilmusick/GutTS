@@ -16,7 +16,8 @@ type CactusWhistle = {
 
 export const cactusNeedle3Runtime: ModelRuntime<Needle3Model> = {
   async load() {
-    const {createNeedle} = await import("cactus-needle");
+    const {createNeedle, downloadModel} = await import("cactus-needle");
+    await downloadModel({model: "needle3"});
     const session = await createNeedle();
     const needle = session as unknown as CactusNeedle;
     return {
@@ -35,7 +36,8 @@ export const cactusNeedle3Runtime: ModelRuntime<Needle3Model> = {
 
 export const cactusWhistleRuntime: ModelRuntime<WhistleModel> = {
   async load() {
-    const {createWhistle} = await import("cactus-needle");
+    const {createWhistle, downloadModel} = await import("cactus-needle");
+    await downloadModel({model: "whistle"});
     const session = await createWhistle();
     const whistle = session as unknown as CactusWhistle;
     return {
@@ -43,7 +45,7 @@ export const cactusWhistleRuntime: ModelRuntime<WhistleModel> = {
         const result = await whistle.transcribe(input.audio, {
           ...(input.language === undefined ? {} : {language: input.language}),
         });
-        return result.text;
+        return typeof result === "string" ? result : result?.text ?? "";
       },
       close: () => whistle.close(),
     };

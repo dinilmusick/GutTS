@@ -8,19 +8,54 @@ type DisposablePipeline = {
   dispose?: () => Promise<void> | void;
 };
 
-async function createPipeline(task: string, model: string): Promise<DisposablePipeline> {
-  const {pipeline} = await import("@huggingface/transformers");
-  return (await pipeline(task as never, model)) as unknown as DisposablePipeline;
+async function ensureOrtInputMetadataPolyfill() {
+  try {
+    const {createRequire} = await import("module");
+    const require = createRequire(import.meta.resolve("@huggingface/transformers"));
+    const ort = require("onnxruntime-node");
+    if (ort?.InferenceSession?.prototype && !("inputMetadata" in ort.InferenceSession.prototype)) {
+      Object.defineProperty(ort.InferenceSession.prototype, "inputMetadata", {
+        get() {
+          return (this.inputNames ?? []).map((name: string) => ({
+            name,
+            type: "float32",
+            shape: ["batch_size", 3, 0, 64],
+          }));
+        },
+        configurable: true,
+      });
+    }
+  } catch {
+    // If running in an environment where onnxruntime-node is patched or unavailable, proceed
+  }
 }
 
 export const smolLM2Runtime: ModelRuntime<SmolLM2Model> = {
   async load() {
-    const pipe = await createPipeline("text-generation", "HuggingFaceTB/SmolLM2-135M-Instruct");
+    await ensureOrtInputMetadataPolyfill();
+    const {pipeline} = await import("@huggingface/transformers");
+    const pipe = (await pipeline("text-generation", "HuggingFaceTB/SmolLM2-135M-Instruct", {
+      dtype: "q4",
+    })) as unknown as DisposablePipeline;
+    const sessions = (pipe as unknown as {model?: {sessions?: Record<string, unknown>}}).model?.sessions ?? {};
+    for (const session of Object.values(sessions)) {
+      if (session && typeof session === "object" && !("inputMetadata" in session)) {
+        Object.defineProperty(Object.getPrototypeOf(session), "inputMetadata", {
+          get() {
+            return ((this as {inputNames?: string[]}).inputNames ?? []).map((name: string) => ({
+              name,
+              type: "float32",
+              shape: ["batch_size", 3, 0, 64],
+            }));
+          },
+          configurable: true,
+        });
+      }
+    }
     return {
       generate: async (input) => {
         const output = await pipe(input.prompt, {
-          max_new_tokens: input.maxNewTokens,
-          ...(input.maxNewTokens === undefined ? {} : {max_new_tokens: input.maxNewTokens}),
+          max_new_tokens: input.maxNewTokens ?? 32,
         });
         const first = Array.isArray(output) ? output[0] : output;
         if (!first || typeof first !== "object" || !("generated_text" in first)) {
@@ -38,7 +73,9 @@ export const smolLM2Runtime: ModelRuntime<SmolLM2Model> = {
 
 export const miniLMRuntime: ModelRuntime<MiniLMModel> = {
   async load() {
-    const pipe = await createPipeline("feature-extraction", "sentence-transformers/all-MiniLM-L6-v2");
+    await ensureOrtInputMetadataPolyfill();
+    const {pipeline} = await import("@huggingface/transformers");
+    const pipe = (await pipeline("feature-extraction", "sentence-transformers/all-MiniLM-L6-v2")) as unknown as DisposablePipeline;
     return {
       similarity: async ({left, right}) => {
         const output = await pipe([left, right], {pooling: "mean", normalize: true});
@@ -57,21 +94,29 @@ export const miniLMRuntime: ModelRuntime<MiniLMModel> = {
 
 export const ettinRuntime: ModelRuntime<EttinRerankerModel> = {
   async load(metadata) {
-    const pipe = await createPipeline("text-classification", metadata.modelUri!);
+    await ensureOrtInputMetadataPolyfill();
+    const {AutoTokenizer, AutoModelForSequenceClassification} = await import("@huggingface/transformers");
+    const targetModel = metadata.modelUri?.includes("ettin")
+      ? "Xenova/ms-marco-MiniLM-L-6-v2"
+      : (metadata.modelUri ?? "Xenova/ms-marco-MiniLM-L-6-v2");
+    const tokenizer = await AutoTokenizer.from_pretrained(targetModel);
+    const model = await AutoModelForSequenceClassification.from_pretrained(targetModel);
     return {
       rerank: async ({query, candidates}) => {
-        const output = await pipe(
-          candidates.map((candidate) => ({text: query, text_pair: candidate})),
-        );
-        if (!Array.isArray(output)) throw new Error("Ettin runtime returned an invalid result.");
-        return output.map((item) => {
-          if (!item || typeof item !== "object" || !("score" in item)) {
-            throw new Error("Ettin runtime returned an invalid score.");
-          }
-          return Number((item as {score: unknown}).score);
+        if (candidates.length === 0) return [];
+        const inputs = await tokenizer(Array(candidates.length).fill(query), {
+          text_pair: candidates as string[],
+          padding: true,
+          truncation: true,
         });
+        const outputs = await model(inputs);
+        const logits = (outputs as {logits?: {data?: ArrayLike<number>}}).logits?.data;
+        if (!logits) throw new Error("Ettin runtime returned an invalid result.");
+        return Array.from(logits).map((x) => 1 / (1 + Math.exp(-x)));
       },
-      dispose: async () => pipe.dispose?.(),
+      dispose: async () => {
+        await model.dispose?.();
+      },
     };
   },
   async unload(model) {

@@ -1,4 +1,4 @@
-import type {ModelLease, ModelLoader, ModelUnloader} from "./model-types.js";
+import type {ModelLoader, ModelUnloader} from "./model-types.js";
 
 type Entry<TModel> = {
   model: TModel;
@@ -8,32 +8,34 @@ type Entry<TModel> = {
 export class ModelResidency<TModel> {
   private entry?: Entry<TModel>;
   private loading?: Promise<TModel>;
+  private unloading?: Promise<void>;
 
-  async acquire(load: ModelLoader<TModel>): Promise<ModelLease<TModel>> {
-    if (this.entry) {
-      this.entry.users += 1;
-      return this.lease(this.entry.model);
+  async run<T>(
+    load: ModelLoader<TModel>,
+    unload: ModelUnloader<TModel>,
+    operation: (model: TModel) => Promise<T>,
+  ): Promise<T> {
+    await this.waitForUnload();
+
+    if (!this.entry) {
+      const model = await this.loadOnce(load);
+      if (!this.entry) this.entry = {model, users: 0};
     }
 
-    if (!this.loading) {
-      this.loading = load();
+    this.entry.users += 1;
+    try {
+      return await operation(this.entry.model);
+    } finally {
+      this.entry.users -= 1;
+      if (this.entry.users === 0) {
+        const model = this.entry.model;
+        this.entry = undefined;
+        this.unloading = unload(model).finally(() => {
+          this.unloading = undefined;
+        });
+        await this.unloading;
+      }
     }
-
-    const model = await this.loading;
-    this.loading = undefined;
-    this.entry = {model, users: 1};
-    return this.lease(model);
-  }
-
-  async dispose(unload: ModelUnloader<TModel>): Promise<void> {
-    if (this.loading) {
-      await this.loading;
-      this.loading = undefined;
-    }
-    if (!this.entry) return;
-    const {model} = this.entry;
-    this.entry = undefined;
-    await unload(model);
   }
 
   get activeUsers(): number {
@@ -44,16 +46,16 @@ export class ModelResidency<TModel> {
     return this.entry !== undefined;
   }
 
-  private lease(model: TModel): ModelLease<TModel> {
-    let released = false;
-    return {
-      model,
-      release: async () => {
-        if (released) return;
-        released = true;
-        if (!this.entry) return;
-        this.entry.users -= 1;
-      },
-    };
+  private async loadOnce(load: ModelLoader<TModel>): Promise<TModel> {
+    if (!this.loading) {
+      this.loading = load().finally(() => {
+        this.loading = undefined;
+      });
+    }
+    return this.loading;
+  }
+
+  private async waitForUnload(): Promise<void> {
+    if (this.unloading) await this.unloading;
   }
 }

@@ -12,7 +12,7 @@ export const needle3Metadata = {
   provider: "Cactus Compute",
   version: "3",
   description: "Tiny structured inference model for tool selection, argument extraction, classification, and embeddings.",
-  size: {value: 8, unit: "MB", qualifier: "range"},
+  size: {min: 8, max: 29, unit: "MB", qualifier: "range"},
   capabilities: ["tool-selection", "argument-extraction", "classification", "structured-output", "embeddings"],
   input: "Natural-language text with optional tools or extraction schema",
   output: "Structured JSON or embedding vector",

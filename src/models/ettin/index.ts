@@ -7,10 +7,10 @@ export type EttinRerankerModel = {
 
 const defineEttin = (id: string, name: string, parameters: number, description: string) => ({
   id, name, provider: "Hugging Face", version: String(parameters),
-  description, size: {value: parameters, unit: "params" as const, qualifier: "parameters" as const},
+  description, size: {value: parameters * 1_000_000, unit: "parameters" as const, qualifier: "parameters" as const},
   capabilities: ["reranking", "relevance-scoring"],
   input: "Query and candidate texts", output: "Candidate relevance scores",
-  runtime: "ModelRuntime adapter", modelUri: `jhu-clsp/ettin-reranker-${parameters}m`,
+  runtime: "ModelRuntime adapter", modelUri: `cross-encoder/ettin-reranker-${parameters}m-v1`,
   license: "Apache-2.0",
 });
 

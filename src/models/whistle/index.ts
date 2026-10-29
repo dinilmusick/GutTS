@@ -1,5 +1,5 @@
 import {defineApi} from "../../api/define-api.js";
-import {ModelLibrary} from "../model-library.js";
+import {ModelLibrary} from "../model-library.js";\nimport type {ModelRuntime} from "../model-types.js";\nimport {cactusWhistleRuntime} from "../runtimes/cactus.js";
 
 export type WhistleModel = {
   transcribe(input: {audio: Uint8Array; language?: string}): Promise<string>;
@@ -36,7 +36,7 @@ export const whistleTranscribeApi = defineApi({
 });
 
 export class Whistle extends ModelLibrary<WhistleModel> {
-  constructor(runtime: import("../model-types.js").ModelRuntime<WhistleModel>) {
+  constructor(runtime: ModelRuntime<WhistleModel> = cactusWhistleRuntime) {
     super(whistleMetadata, runtime);
   }
 

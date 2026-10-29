@@ -2,8 +2,6 @@ import {defineApi} from "./define-api.js";
 import type {ApiDefinition} from "./api-types.js";
 
 const array = {type: "array"};
-const any = {};
-const number = {type: "number"};
 const integer = {type: "integer"};
 
 export const arrayApis: readonly ApiDefinition[] = [

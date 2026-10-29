@@ -1,5 +1,5 @@
 export type ModelSize =
-  | {value: number; unit: "MB" | "GB" | "params"; qualifier: "artifact" | "parameters"}
+  | {value: number; unit: "MB" | "GB" | "parameters"; qualifier: "artifact" | "parameters"}
   | {min: number; max: number; unit: "MB" | "GB" | "params"; qualifier: "range"};
 
 export type ModelMetadata = {

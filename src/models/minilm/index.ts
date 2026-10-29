@@ -1,5 +1,5 @@
 import {defineApi} from "../../api/define-api.js";
-import {ModelLibrary} from "../model-library.js";
+import {ModelLibrary} from "../model-library.js";\nimport type {ModelRuntime} from "../model-types.js";\nimport {miniLMRuntime} from "../runtimes/transformers.js";
 
 export type MiniLMModel = {
   similarity(input: {left: string; right: string}): Promise<number>;
@@ -37,7 +37,7 @@ export const miniLMSimilarityApi = defineApi({
 });
 
 export class MiniLM extends ModelLibrary<MiniLMModel> {
-  constructor(runtime: import("../model-types.js").ModelRuntime<MiniLMModel>) {
+  constructor(runtime: ModelRuntime<MiniLMModel> = miniLMRuntime) {
     super(miniLML6Metadata, runtime);
   }
 

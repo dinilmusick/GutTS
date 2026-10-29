@@ -1,5 +1,5 @@
 import {defineApi} from "../../api/define-api.js";
-import {ModelLibrary} from "../model-library.js";
+import {ModelLibrary} from "../model-library.js";\nimport type {ModelRuntime} from "../model-types.js";\nimport {cactusNeedle3Runtime} from "../runtimes/cactus.js";
 
 export type Needle3Model = {
   complete(input: {prompt: string; tools?: readonly unknown[]; schema?: unknown}): Promise<unknown>;
@@ -38,7 +38,7 @@ export const needle3CompleteApi = defineApi({
 });
 
 export class Needle3 extends ModelLibrary<Needle3Model> {
-  constructor(runtime: import("../model-types.js").ModelRuntime<Needle3Model>) {
+  constructor(runtime: ModelRuntime<Needle3Model> = cactusNeedle3Runtime) {
     super(needle3Metadata, runtime);
   }
 

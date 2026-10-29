@@ -15,7 +15,7 @@ export function guttsApiToFodNode(api:ApiDefinition):GuttsFodNodeDefinition {
     type:`gutts/${api.id}`,label:api.name,description:api.description,category:'gutts',
     group:api.category,
     inputs:api.parameters.map(parameter=>({id:parameter.name,name:parameter.name,direction:'input',dataType:schemaType(parameter.schema),required:parameter.required,description:parameter.description,schema:parameter.schema})),
-    outputs:[{id:'result',name:'result',direction:'output',dataType:schemaType(api.output),description:api.output.description,schema:api.output}],
+    outputs:[{id:'result',name:'result',direction:'output',dataType:schemaType(api.output),...(api.output.description ? {description:api.output.description} : {}),schema:api.output}],
     metadata:{apiId:api.id,package:'@dinilmusick/gutts',semantics:api.semantics}
   };
 }

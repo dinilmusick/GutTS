@@ -41,6 +41,11 @@ export type SemanticInputErrorCode =
 
 export type SemanticInputRisk = "low" | "medium" | "high";
 
+export type SemanticInputProgress = {
+  phase: "started" | "deterministic" | "ranking" | "structured" | "completed";
+  detail?: string;
+};
+
 export type SemanticInputEvent =
   | {type: "semantic.started"; input: string}
   | {type: "semantic.deterministic"; value: unknown}
@@ -147,6 +152,7 @@ export type SemanticInputRequest = {
   cache?: SemanticInputCache;
   signal?: AbortSignal;
   onEvent?: (event: SemanticInputEvent) => void;
+  onProgress?: (progress: SemanticInputProgress) => void;
 };
 
 function unwrapModelOutput(output: unknown): unknown {
@@ -307,6 +313,7 @@ export async function resolveSemanticInput<T = unknown>(
 ): Promise<SemanticInputResolution<T>> {
   const preserveRaw = request.preserveRawInput ?? false;
   const confirmed = confirmationRequired(request.policy);
+  request.onProgress?.({phase: "started"});
   request.onEvent?.({type: "semantic.started", input: request.input});
   if (request.signal?.aborted) {
     request.onEvent?.({type: "semantic.failed", code: "ABORTED"});
@@ -337,6 +344,7 @@ export async function resolveSemanticInput<T = unknown>(
 
   const deterministic = resolveDeterministicSemanticInput<T>(request.input, request.schema);
   if (deterministic) {
+    request.onProgress?.({phase: "deterministic"});
     const result = {...deterministic, ...(confirmed ? {requiresConfirmation: true} : {}), provenance: provenance(request, true)};
     request.cache?.set(cacheKey(request), result);
     request.onEvent?.({type: "semantic.deterministic", value: result.value});
@@ -344,6 +352,7 @@ export async function resolveSemanticInput<T = unknown>(
     return result;
   }
 
+  request.onProgress?.({phase: "ranking", detail: "Ranking contextual candidates"});
   const candidateList = request.candidates?.length ? request.candidates : (request.context?.vocabulary ?? []);
   const candidates = candidateList.length ? await rankSemanticInputCandidates(request.input, candidateList) : [];
 
@@ -358,6 +367,7 @@ export async function resolveSemanticInput<T = unknown>(
     };
   }
 
+  request.onProgress?.({phase: "structured", detail: "Resolving target schema"});
   const needle = new Needle3();
   let rawOutput: unknown;
   try {
@@ -454,6 +464,7 @@ export async function resolveSemanticInput<T = unknown>(
     ...(confirmed ? {requiresConfirmation: true} : {}),
   };
   request.cache?.set(cacheKey(request), result);
+  request.onProgress?.({phase: "completed"});
   request.onEvent?.({type: "semantic.resolved", value: result.value});
   return result;
 }

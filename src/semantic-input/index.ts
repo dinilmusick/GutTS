@@ -265,7 +265,9 @@ export async function resolveSemanticInput<T = unknown>(
 ): Promise<SemanticInputResolution<T>> {
   const preserveRaw = request.preserveRawInput ?? false;
   const confirmed = confirmationRequired(request.policy);
+  request.onEvent?.({type: "semantic.started", input: request.input});
   if (request.signal?.aborted) {
+    request.onEvent?.({type: "semantic.failed", code: "ABORTED"});
     return {
       status: "failed",
       ...(preserveRaw ? {rawInput: request.input} : {}),
@@ -287,6 +289,7 @@ export async function resolveSemanticInput<T = unknown>(
       error: {code: "EMPTY_INPUT", message: "Semantic input is empty."},
     };
     request.cache?.set(cacheKey(request), result);
+    request.onEvent?.({type: "semantic.invalid", code: "EMPTY_INPUT"});
     return result;
   }
 
@@ -294,6 +297,8 @@ export async function resolveSemanticInput<T = unknown>(
   if (deterministic) {
     const result = {...deterministic, ...(confirmed ? {requiresConfirmation: true} : {})};
     request.cache?.set(cacheKey(request), result);
+    request.onEvent?.({type: "semantic.deterministic", value: result.value});
+    request.onEvent?.({type: "semantic.resolved", value: result.value});
     return result;
   }
 
@@ -301,6 +306,7 @@ export async function resolveSemanticInput<T = unknown>(
   const candidates = candidateList.length ? await rankSemanticInputCandidates(request.input, candidateList) : [];
 
   if (request.signal?.aborted) {
+    request.onEvent?.({type: "semantic.failed", code: "ABORTED"});
     return {
       status: "failed",
       ...(preserveRaw ? {rawInput: request.input} : {}),
@@ -318,6 +324,7 @@ export async function resolveSemanticInput<T = unknown>(
       schema: request.schema,
     });
   } catch {
+    request.onEvent?.({type: "semantic.failed", code: "MODEL_FAILURE"});
     return {
       status: "failed",
       ...(preserveRaw ? {rawInput: request.input} : {}),
@@ -385,6 +392,12 @@ export async function resolveSemanticInput<T = unknown>(
         : {code: "SCHEMA_MISMATCH", message: "The model output could not be resolved to the target schema."},
     };
     request.cache?.set(cacheKey(request), result);
+    if (result.status === "ambiguous") {
+      request.onEvent?.({type: "semantic.ambiguous", candidates: candidates.map((candidate) => candidate.value)});
+      if (result.clarification) request.onEvent?.({type: "semantic.clarification.required", question: result.clarification.question});
+    } else {
+      request.onEvent?.({type: "semantic.invalid", code: result.error?.code ?? "SCHEMA_MISMATCH"});
+    }
     return result;
   }
 
@@ -398,5 +411,6 @@ export async function resolveSemanticInput<T = unknown>(
     ...(confirmed ? {requiresConfirmation: true} : {}),
   };
   request.cache?.set(cacheKey(request), result);
+  request.onEvent?.({type: "semantic.resolved", value: result.value});
   return result;
 }

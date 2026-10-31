@@ -34,8 +34,8 @@ export type SemanticInputRequest = {
 
 export type SemanticInputCandidate = {
   value: string;
-  similarity?: number;
-  relevance?: number;
+  similarity?: number | undefined;
+  relevance?: number | undefined;
 };
 
 export type SemanticInputResolution<T = unknown> = {
@@ -49,7 +49,10 @@ export type SemanticInputResolution<T = unknown> = {
 function unwrapModelOutput(output: unknown): unknown {
   if (!output || typeof output !== "object") return output;
   const record = output as Record<string, unknown>;
-  return record.output ?? record.result ?? record.data ?? record.structuredOutput ?? output;
+  for (const key of ["output", "result", "data", "structuredOutput"]) {
+    if (key in record) return record[key];
+  }
+  return output;
 }
 
 function buildPrompt(request: SemanticInputRequest): string {
@@ -84,20 +87,61 @@ export async function rankSemanticInputCandidates(
   const relevance = await reranker.rerank({query: input, candidates});
   return candidates
     .map((value, index) => ({value, similarity: similarities[index], relevance: relevance[index]}))
-    .sort((a, b) => (b.relevance ?? -Infinity) - (a.relevance ?? -Infinity));
+    .sort((a, b) => {
+      const relDiff = (b.relevance ?? -Infinity) - (a.relevance ?? -Infinity);
+      if (relDiff !== 0) return relDiff;
+      const simDiff = (b.similarity ?? -Infinity) - (a.similarity ?? -Infinity);
+      if (simDiff !== 0) return simDiff;
+      return a.value.localeCompare(b.value);
+    });
 }
 
 export async function resolveSemanticInput<T = unknown>(
   request: SemanticInputRequest,
 ): Promise<SemanticInputResolution<T>> {
-  const needle = new Needle3();
-  const modelOutput = unwrapModelOutput(await needle.complete({
-    prompt: buildPrompt(request),
-    schema: request.schema,
-  }));
-  const candidates = request.candidates?.length
-    ? await rankSemanticInputCandidates(request.input, request.candidates)
+  if (!request.input || !request.input.trim()) {
+    return {
+      status: "invalid",
+      ...(request.preserveRawInput ? {rawInput: request.input} : {}),
+      candidates: [],
+      modelOutput: undefined,
+    };
+  }
+
+  const candidateList = request.candidates?.length
+    ? request.candidates
+    : (request.context?.vocabulary ?? []);
+  const candidates = candidateList.length
+    ? await rankSemanticInputCandidates(request.input, candidateList)
     : [];
+
+  const needle = new Needle3();
+  let rawOutput: unknown;
+  try {
+    rawOutput = await needle.complete({
+      prompt: buildPrompt(request),
+      schema: request.schema,
+    });
+  } catch {
+    return {
+      status: "invalid",
+      ...(request.preserveRawInput ? {rawInput: request.input} : {}),
+      candidates,
+      modelOutput: undefined,
+    };
+  }
+
+  const modelOutput = unwrapModelOutput(rawOutput);
+
+  if (modelOutput === undefined || modelOutput === null || modelOutput === "") {
+    return {
+      status: "invalid",
+      ...(request.preserveRawInput ? {rawInput: request.input} : {}),
+      candidates,
+      modelOutput,
+    };
+  }
+
   const value = (candidates.length && typeof modelOutput === "string"
     ? candidates[0]?.value
     : modelOutput) as T | undefined;

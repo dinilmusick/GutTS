@@ -63,6 +63,16 @@ export type SemanticInputPolicy = {
   modelPolicy?: SemanticInputModelPolicy;
 };
 
+export type SemanticInputProvenanceStore = {
+  append(record: SemanticInputProvenanceRecord): void | Promise<void>;
+};
+
+export type SemanticInputProvenanceRecord = {
+  provenance: SemanticInputProvenance;
+  status: SemanticInputResolution["status"];
+  timestamp: string;
+};
+
 export type SemanticInputProvenance = {
   requestFingerprint: string;
   resolver: "GutTS.semantic-input";
@@ -153,6 +163,7 @@ export type SemanticInputRequest = {
   signal?: AbortSignal;
   onEvent?: (event: SemanticInputEvent) => void;
   onProgress?: (progress: SemanticInputProgress) => void;
+  provenanceStore?: SemanticInputProvenanceStore;
 };
 
 function unwrapModelOutput(output: unknown): unknown {
@@ -230,6 +241,19 @@ function provenance(request: SemanticInputRequest, deterministic: boolean): Sema
     models: ["Needle3", "MiniLM", "EttinReranker17M"],
     deterministic,
   };
+}
+
+function recordProvenance(
+  request: SemanticInputRequest,
+  resolution: SemanticInputResolution,
+): void {
+  const provenance = resolution.provenance;
+  if (!provenance || !request.provenanceStore) return;
+  void request.provenanceStore.append({
+    provenance,
+    status: resolution.status,
+    timestamp: new Date().toISOString(),
+  });
 }
 
 function confirmationRequired(policy?: SemanticInputPolicy): boolean {
@@ -349,6 +373,7 @@ export async function resolveSemanticInput<T = unknown>(
     request.cache?.set(cacheKey(request), result);
     request.onEvent?.({type: "semantic.deterministic", value: result.value});
     request.onEvent?.({type: "semantic.resolved", value: result.value});
+    recordProvenance(request, result);
     return result;
   }
 
@@ -450,6 +475,7 @@ export async function resolveSemanticInput<T = unknown>(
     } else {
       request.onEvent?.({type: "semantic.invalid", code: result.error?.code ?? "SCHEMA_MISMATCH"});
     }
+    recordProvenance(request, result);
     return result;
   }
 
@@ -466,5 +492,6 @@ export async function resolveSemanticInput<T = unknown>(
   request.cache?.set(cacheKey(request), result);
   request.onProgress?.({phase: "completed"});
   request.onEvent?.({type: "semantic.resolved", value: result.value});
+  recordProvenance(request, result);
   return result;
 }

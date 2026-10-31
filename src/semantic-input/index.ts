@@ -77,7 +77,7 @@ export type SemanticInputProvenance = {
   requestFingerprint: string;
   resolver: "GutTS.semantic-input";
   modelPolicy: SemanticInputModelPolicy;
-  models: readonly ["Needle3", "MiniLM", "EttinReranker17M"];
+  models: readonly ["Needle3", "MiniLM", "EttinReranker17M" | "EttinReranker32M" | "EttinReranker68M"];
   deterministic: boolean;
 };
 
@@ -238,7 +238,7 @@ function provenance(request: SemanticInputRequest, deterministic: boolean): Sema
     requestFingerprint: fingerprint(request),
     resolver: "GutTS.semantic-input",
     modelPolicy: modelPolicy(request.policy),
-    models: ["Needle3", "MiniLM", "EttinReranker17M"],
+    models: ["Needle3", "MiniLM", modelPolicy(request.policy) === "fast" ? "EttinReranker17M" : modelPolicy(request.policy) === "accurate" ? "EttinReranker68M" : "EttinReranker32M"],
     deterministic,
   };
 }
@@ -303,10 +303,15 @@ export function resolveDeterministicSemanticInput<T = unknown>(
 export async function rankSemanticInputCandidates(
   input: string,
   candidates: readonly string[],
+  policy: SemanticInputModelPolicy = "balanced",
 ): Promise<readonly SemanticInputCandidate[]> {
   if (candidates.length === 0) return [];
   const similarityModel = new MiniLM();
-  const reranker = new EttinReranker17M();
+  const reranker = policy === "fast"
+    ? new EttinReranker17M()
+    : policy === "accurate"
+      ? new EttinReranker68M()
+      : new EttinReranker32M();
   const similarities = await Promise.all(
     candidates.map((candidate) => similarityModel.similarity({left: input, right: candidate})),
   );
@@ -380,7 +385,7 @@ export async function resolveSemanticInput<T = unknown>(
 
   request.onProgress?.({phase: "ranking", detail: "Ranking contextual candidates"});
   const candidateList = request.candidates?.length ? request.candidates : (request.context?.vocabulary ?? []);
-  const candidates = candidateList.length ? await rankSemanticInputCandidates(request.input, candidateList) : [];
+  const candidates = candidateList.length ? await rankSemanticInputCandidates(request.input, candidateList, modelPolicy(request.policy)) : [];
 
   if (request.signal?.aborted) {
     request.onEvent?.({type: "semantic.failed", code: "ABORTED"});

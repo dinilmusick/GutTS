@@ -1,4 +1,4 @@
-import {EttinReranker17M} from "../models/ettin/index.js";
+import {EttinReranker17M, EttinReranker32M, EttinReranker68M} from "../models/ettin/index.js";
 import {MiniLM} from "../models/minilm/index.js";
 import {Needle3} from "../models/needle3/index.js";
 
@@ -264,10 +264,10 @@ function deterministicValue(input: string, schema: SemanticInputSchema): unknown
   const trimmed = input.trim();
   if (schema.enum?.some((candidate) => candidate === trimmed)) return trimmed;
   if (schema.type === "string") {
-    if (schema.format === "email" && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(trimmed)) return trimmed;
-    if (schema.format === "uri" && /^https?:\\/\\//i.test(trimmed)) return trimmed;
-    if (schema.format === "date" && /^\\d{4}-\\d{2}-\\d{2}$/.test(trimmed)) return trimmed;
-    if (schema.format === "date-time" && /^\\d{4}-\\d{2}-\\d{2}T/.test(trimmed)) return trimmed;
+    if (schema.format === "email" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return trimmed;
+    if (schema.format === "uri" && /^https?:\/\//i.test(trimmed)) return trimmed;
+    if (schema.format === "date" && /^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (schema.format === "date-time" && /^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed;
     if (schema.pattern && new RegExp(String(schema.pattern)).test(trimmed)) return trimmed;
   }
   if (schema.type === "number") {
@@ -471,7 +471,10 @@ export async function resolveSemanticInput<T = unknown>(
       candidates,
       modelOutput,
       evidence,
-      ...(candidates.length > 1 ? {clarification: clarificationFor(candidates, request.context)} : {}),
+      ...(() => {
+        const clarification = candidates.length > 1 ? clarificationFor(candidates, request.context) : undefined;
+        return clarification ? {clarification} : {};
+      })(),
       error: candidates.length
         ? {code: "AMBIGUOUS_CANDIDATE", message: "Semantic evidence did not uniquely identify a candidate."}
         : {code: "SCHEMA_MISMATCH", message: "The model output could not be resolved to the target schema."},

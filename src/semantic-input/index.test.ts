@@ -20,13 +20,18 @@ vi.mock("../models/minilm/index.js", () => ({
   },
 }));
 
-vi.mock("../models/ettin/index.js", () => ({
-  EttinReranker17M: class {
+vi.mock("../models/ettin/index.js", () => {
+  class MockEttin {
     rerank(args: {query: string; candidates: readonly string[]}) {
       return rerankMock(args);
     }
-  },
-}));
+  }
+  return {
+    EttinReranker17M: MockEttin,
+    EttinReranker32M: MockEttin,
+    EttinReranker68M: MockEttin,
+  };
+});
 
 import {SemanticInputCache, rankSemanticInputCandidates, resolveDeterministicSemanticInput, resolveSemanticInput} from "./index.js";
 
@@ -283,7 +288,7 @@ describe("GutTS universal semantic input", () => {
       expect(result.error?.code).toBe("MODEL_FAILURE");
       expect(result.value).toBeUndefined();
     });
-  });\n
+  });
   it("13. deterministic primitive values bypass model inference", async () => {
     const result = resolveDeterministicSemanticInput("42", {type: "integer"});
     expect(result?.status).toBe("resolved");
@@ -356,10 +361,9 @@ describe("GutTS universal semantic input", () => {
     });
     expect(result.provenance?.resolver).toBe("GutTS.semantic-input");
     expect(result.provenance?.modelPolicy).toBe("balanced");
-    expect(result.provenance?.models).toEqual(["Needle3", "MiniLM", "EttinReranker17M"]);
+    expect(result.provenance?.models).toEqual(["Needle3", "MiniLM", "EttinReranker32M"]);
     expect(phases).toContain("started");
     expect(phases).toContain("structured");
     expect(phases).toContain("completed");
   });
-
-});\n
+});

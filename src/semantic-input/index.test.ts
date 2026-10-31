@@ -282,5 +282,54 @@ describe("GutTS universal semantic input", () => {
       expect(result.status).toBe("invalid");
       expect(result.value).toBeUndefined();
     });
+  });\n
+  it("13. deterministic primitive values bypass model inference", async () => {
+    const result = resolveDeterministicSemanticInput("42", {type: "integer"});
+    expect(result?.status).toBe("resolved");
+    expect(result?.value).toBe(42);
+    expect(completeMock).not.toHaveBeenCalled();
   });
-});
+
+  it("14. ambiguity produces a clarification request and evidence", async () => {
+    similarityMock.mockResolvedValueOnce(0.72).mockResolvedValueOnce(0.70);
+    rerankMock.mockResolvedValueOnce([5.0, 4.95]);
+    completeMock.mockResolvedValueOnce({output: "uncertain"});
+
+    const result = await resolveSemanticInput({
+      input: "some month",
+      schema: {type: "string"},
+      context: {label: "Birth month"},
+      candidates: ["May", "March"],
+    });
+
+    expect(result.status).toBe("ambiguous");
+    expect(result.clarification?.candidates).toEqual(["May", "March"]);
+    expect(result.clarification?.question).toContain("Birth month");
+    expect(result.evidence?.needleOutput).toBe("uncertain");
+  });
+
+  it("15. bounded cache reuses a semantic result", async () => {
+    completeMock.mockResolvedValue({output: "hello"});
+    const cache = new SemanticInputCache(2);
+    const request = {input: "hello", schema: {type: "string"}, cache};
+
+    const first = await resolveSemanticInput(request);
+    const second = await resolveSemanticInput(request);
+
+    expect(first.value).toBe("hello");
+    expect(second.value).toBe("hello");
+    expect(completeMock).toHaveBeenCalledTimes(1);
+    expect(cache.size).toBe(1);
+  });
+
+  it("16. high-risk semantic values require confirmation", async () => {
+    completeMock.mockResolvedValueOnce({output: "transfer"});
+    const result = await resolveSemanticInput({
+      input: "transfer",
+      schema: {type: "string"},
+      policy: {risk: "high"},
+    });
+    expect(result.status).toBe("resolved");
+    expect(result.requiresConfirmation).toBe(true);
+  });
+});\n

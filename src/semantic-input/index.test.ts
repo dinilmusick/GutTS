@@ -202,7 +202,7 @@ describe("GutTS universal semantic input", () => {
   it("10. Contextual example resolves through schema/context pipeline without hard-coded replacements", async () => {
     similarityMock.mockImplementation(async ({right}) => (right === "May" ? 0.95 : 0.3));
     rerankMock.mockResolvedValueOnce([12.0, 1.0]);
-    completeMock.mockResolvedValueOnce({output: "May"});
+    completeMock.mockResolvedValueOnce({output: "mage"});
 
     const result = await resolveSemanticInput({
       input: "23 mage 1994",
@@ -219,6 +219,36 @@ describe("GutTS universal semantic input", () => {
     expect(result.value).toBe("May");
     expect(result.rawInput).toBe("23 mage 1994");
     expect(result.candidates[0]?.value).toBe("May");
+  });
+
+  it("11. does not select the top candidate when semantic evidence is ambiguous", async () => {
+    similarityMock.mockResolvedValueOnce(0.72).mockResolvedValueOnce(0.70);
+    rerankMock.mockResolvedValueOnce([5.0, 4.95]);
+    completeMock.mockResolvedValueOnce({output: "uncertain month"});
+
+    const result = await resolveSemanticInput({
+      input: "some month",
+      schema: {type: "string"},
+      candidates: ["May", "March"],
+    });
+
+    expect(result.status).toBe("ambiguous");
+    expect(result.value).toBeUndefined();
+  });
+
+  it("12. accepts an exact model-selected candidate without arbitrary reranking", async () => {
+    similarityMock.mockResolvedValueOnce(0.1).mockResolvedValueOnce(0.1);
+    rerankMock.mockResolvedValueOnce([1.0, 100.0]);
+    completeMock.mockResolvedValueOnce({output: "May"});
+
+    const result = await resolveSemanticInput({
+      input: "May",
+      schema: {type: "string"},
+      candidates: ["May", "March"],
+    });
+
+    expect(result.status).toBe("resolved");
+    expect(result.value).toBe("May");
   });
 
   describe("Edge cases", () => {

@@ -347,6 +347,7 @@ export async function resolveSemanticInput<T = unknown>(
       candidates: [],
       modelOutput: undefined,
       error: {code: "ABORTED", message: "Semantic resolution was aborted."},
+      provenance: provenance(request, false),
     };
   }
 
@@ -408,6 +409,7 @@ export async function resolveSemanticInput<T = unknown>(
       candidates,
       modelOutput: undefined,
       error: {code: "MODEL_FAILURE", message: "Needle structured resolution failed."},
+      provenance: provenance(request, false),
     };
   }
 
@@ -419,6 +421,7 @@ export async function resolveSemanticInput<T = unknown>(
       candidates,
       modelOutput,
       error: {code: "MODEL_OUTPUT_EMPTY", message: "Needle returned no usable semantic value."},
+      provenance: provenance(request, false),
     };
   }
 
@@ -467,6 +470,7 @@ export async function resolveSemanticInput<T = unknown>(
       error: candidates.length
         ? {code: "AMBIGUOUS_CANDIDATE", message: "Semantic evidence did not uniquely identify a candidate."}
         : {code: "SCHEMA_MISMATCH", message: "The model output could not be resolved to the target schema."},
+      provenance: provenance(request, false),
     };
     request.cache?.set(cacheKey(request), result);
     if (result.status === "ambiguous") {

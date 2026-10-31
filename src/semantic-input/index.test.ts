@@ -346,4 +346,20 @@ describe("GutTS universal semantic input", () => {
     expect(events).toContain("semantic.resolved");
   });
 
+  it("18. exposes provenance and progressive phases", async () => {
+    completeMock.mockResolvedValueOnce({output: "May"});
+    const phases: string[] = [];
+    const result = await resolveSemanticInput({
+      input: "May",
+      schema: {type: "string"},
+      onProgress: (progress) => phases.push(progress.phase),
+    });
+    expect(result.provenance?.resolver).toBe("GutTS.semantic-input");
+    expect(result.provenance?.modelPolicy).toBe("balanced");
+    expect(result.provenance?.models).toEqual(["Needle3", "MiniLM", "EttinReranker17M"]);
+    expect(phases).toContain("started");
+    expect(phases).toContain("structured");
+    expect(phases).toContain("completed");
+  });
+
 });\n

@@ -28,7 +28,7 @@ vi.mock("../models/ettin/index.js", () => ({
   },
 }));
 
-import {rankSemanticInputCandidates, resolveSemanticInput} from "./index.js";
+import {SemanticInputCache, rankSemanticInputCandidates, resolveDeterministicSemanticInput, resolveSemanticInput} from "./index.js";
 
 describe("GutTS universal semantic input", () => {
   beforeEach(() => {

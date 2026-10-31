@@ -333,4 +333,17 @@ describe("GutTS universal semantic input", () => {
     expect(result.status).toBe("resolved");
     expect(result.requiresConfirmation).toBe(true);
   });
+  it("17. semantic lifecycle events expose resolution outcomes", async () => {
+    completeMock.mockResolvedValueOnce({output: "May"});
+    const events: string[] = [];
+    const result = await resolveSemanticInput({
+      input: "May",
+      schema: {type: "string"},
+      onEvent: (event) => events.push(event.type),
+    });
+    expect(result.status).toBe("resolved");
+    expect(events).toContain("semantic.started");
+    expect(events).toContain("semantic.resolved");
+  });
+
 });\n

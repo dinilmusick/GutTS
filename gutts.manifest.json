@@ -16,7 +16,8 @@
     "numbers",
     "urls",
     "api",
-    "models"
+    "models",
+    "semantic-input"
   ],
   "exports": [
     "@dinilmusick/gutts/json",
@@ -26,6 +27,7 @@
     "@dinilmusick/gutts/numbers",
     "@dinilmusick/gutts/urls",
     "@dinilmusick/gutts/api",
-    "@dinilmusick/gutts/models"
+    "@dinilmusick/gutts/models",
+    "@dinilmusick/gutts/semantic-input"
   ]
 }

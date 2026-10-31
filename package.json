@@ -16,6 +16,7 @@
     "./urls": "./dist/urls/url-concepts.js",
     "./api": "./dist/api/index.js",
     "./models": "./dist/models/index.js",
+    "./semantic-input": "./dist/semantic-input/index.js",
     "./gutts.manifest.json": "./gutts.manifest.json"
   },
   "scripts": {

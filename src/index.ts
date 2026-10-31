@@ -6,3 +6,4 @@ export * from "./numbers/number-concepts.js";
 export * from "./urls/url-concepts.js";
 export * from "./api/index.js";
 export * from "./models/index.js";
+export * from "./semantic-input/index.js";

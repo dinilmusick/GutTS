@@ -41,6 +41,15 @@ export type SemanticInputErrorCode =
 
 export type SemanticInputRisk = "low" | "medium" | "high";
 
+export type SemanticInputEvent =
+  | {type: "semantic.started"; input: string}
+  | {type: "semantic.deterministic"; value: unknown}
+  | {type: "semantic.resolved"; value: unknown}
+  | {type: "semantic.ambiguous"; candidates: readonly string[]}
+  | {type: "semantic.clarification.required"; question: string}
+  | {type: "semantic.invalid"; code: SemanticInputErrorCode}
+  | {type: "semantic.failed"; code: SemanticInputErrorCode};
+
 export type SemanticInputPolicy = {
   risk?: SemanticInputRisk;
   requireConfirmation?: boolean;
@@ -125,6 +134,7 @@ export type SemanticInputRequest = {
   policy?: SemanticInputPolicy;
   cache?: SemanticInputCache;
   signal?: AbortSignal;
+  onEvent?: (event: SemanticInputEvent) => void;
 };
 
 function unwrapModelOutput(output: unknown): unknown {

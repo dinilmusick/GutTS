@@ -29,6 +29,6 @@
     "@dinilmusick/gutts/api",
     "@dinilmusick/gutts/models",
     "@dinilmusick/gutts/semantic-input",
-    "engineering"
+    "@dinilmusick/gutts/engineering"
   ]
 }

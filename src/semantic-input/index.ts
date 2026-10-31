@@ -50,9 +50,20 @@ export type SemanticInputEvent =
   | {type: "semantic.invalid"; code: SemanticInputErrorCode}
   | {type: "semantic.failed"; code: SemanticInputErrorCode};
 
+export type SemanticInputModelPolicy = "fast" | "balanced" | "accurate";
+
 export type SemanticInputPolicy = {
   risk?: SemanticInputRisk;
   requireConfirmation?: boolean;
+  modelPolicy?: SemanticInputModelPolicy;
+};
+
+export type SemanticInputProvenance = {
+  requestFingerprint: string;
+  resolver: "GutTS.semantic-input";
+  modelPolicy: SemanticInputModelPolicy;
+  models: readonly ["Needle3", "MiniLM", "EttinReranker17M"];
+  deterministic: boolean;
 };
 
 export type SemanticInputCandidate = {
@@ -87,6 +98,7 @@ export type SemanticInputResolution<T = unknown> = {
     message: string;
   };
   requiresConfirmation?: boolean;
+  provenance?: SemanticInputProvenance;
 };
 
 export type SemanticInputCacheKey = string;
@@ -182,6 +194,36 @@ function cacheKey(request: SemanticInputRequest): SemanticInputCacheKey {
     minCandidateMargin: request.minCandidateMargin ?? 0.15,
     policy: request.policy,
   });
+}
+
+function modelPolicy(policy?: SemanticInputPolicy): SemanticInputModelPolicy {
+  return policy?.modelPolicy ?? "balanced";
+}
+
+function fingerprint(request: SemanticInputRequest): string {
+  const source = JSON.stringify({
+    input: request.input,
+    schema: request.schema,
+    context: request.context,
+    candidates: request.candidates,
+    modelPolicy: modelPolicy(request.policy),
+  });
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function provenance(request: SemanticInputRequest, deterministic: boolean): SemanticInputProvenance {
+  return {
+    requestFingerprint: fingerprint(request),
+    resolver: "GutTS.semantic-input",
+    modelPolicy: modelPolicy(request.policy),
+    models: ["Needle3", "MiniLM", "EttinReranker17M"],
+    deterministic,
+  };
 }
 
 function confirmationRequired(policy?: SemanticInputPolicy): boolean {
@@ -295,7 +337,7 @@ export async function resolveSemanticInput<T = unknown>(
 
   const deterministic = resolveDeterministicSemanticInput<T>(request.input, request.schema);
   if (deterministic) {
-    const result = {...deterministic, ...(confirmed ? {requiresConfirmation: true} : {})};
+    const result = {...deterministic, ...(confirmed ? {requiresConfirmation: true} : {}), provenance: provenance(request, true)};
     request.cache?.set(cacheKey(request), result);
     request.onEvent?.({type: "semantic.deterministic", value: result.value});
     request.onEvent?.({type: "semantic.resolved", value: result.value});
@@ -408,6 +450,7 @@ export async function resolveSemanticInput<T = unknown>(
     candidates,
     modelOutput,
     evidence,
+    provenance: provenance(request, false),
     ...(confirmed ? {requiresConfirmation: true} : {}),
   };
   request.cache?.set(cacheKey(request), result);

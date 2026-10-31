@@ -187,7 +187,6 @@ function deterministicValue(input: string, schema: SemanticInputSchema): unknown
     if (schema.format === "date" && /^\\d{4}-\\d{2}-\\d{2}$/.test(trimmed)) return trimmed;
     if (schema.format === "date-time" && /^\\d{4}-\\d{2}-\\d{2}T/.test(trimmed)) return trimmed;
     if (schema.pattern && new RegExp(String(schema.pattern)).test(trimmed)) return trimmed;
-    if (!schema.format && !schema.pattern) return trimmed;
   }
   if (schema.type === "number") {
     const value = Number(trimmed);

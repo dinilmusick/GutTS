@@ -30,6 +30,10 @@ export type SemanticInputRequest = {
   context?: SemanticInputContext;
   candidates?: readonly string[];
   preserveRawInput?: boolean;
+  /** Minimum semantic similarity required before a ranked candidate can be selected. */
+  minCandidateSimilarity?: number;
+  /** Minimum relevance margin between the first and second candidate. */
+  minCandidateMargin?: number;
 };
 
 export type SemanticInputCandidate = {
@@ -142,13 +146,31 @@ export async function resolveSemanticInput<T = unknown>(
     };
   }
 
-  const value = (candidates.length && typeof modelOutput === "string"
-    ? candidates[0]?.value
-    : modelOutput) as T | undefined;
+  let value: T | undefined;
+
+  if (candidates.length && typeof modelOutput === "string") {
+    const exact = candidates.find((candidate) => candidate.value === modelOutput);
+    if (exact) {
+      value = exact.value as T;
+    } else {
+      const top = candidates[0];
+      const second = candidates[1];
+      const minSimilarity = request.minCandidateSimilarity ?? 0.65;
+      const minMargin = request.minCandidateMargin ?? 0.15;
+      const similarityPass = (top?.similarity ?? -Infinity) >= minSimilarity;
+      const margin = second
+        ? (top?.relevance ?? -Infinity) - (second.relevance ?? -Infinity)
+        : Infinity;
+      const marginPass = margin >= minMargin;
+      if (top && similarityPass && marginPass) value = top.value as T;
+    }
+  } else {
+    value = modelOutput as T;
+  }
 
   if (value === undefined || value === null) {
     return {
-      status: candidates.length > 1 ? "ambiguous" : "invalid",
+      status: candidates.length > 0 ? "ambiguous" : "invalid",
       ...(request.preserveRawInput ? {rawInput: request.input} : {}),
       candidates,
       modelOutput,

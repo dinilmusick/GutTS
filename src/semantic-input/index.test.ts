@@ -160,7 +160,7 @@ describe("GutTS universal semantic input", () => {
       schema: {type: "object"},
       context: {vocabulary: ["One", "Two"]},
     });
-    expect(resultNull.status).toBe("invalid");
+    expect(resultNull.status).toBe("unresolved");
     expect(resultNull.value).toBeUndefined();
 
     completeMock.mockResolvedValueOnce({output: ""});
@@ -168,7 +168,7 @@ describe("GutTS universal semantic input", () => {
       input: "something",
       schema: {type: "string"},
     });
-    expect(resultEmpty.status).toBe("invalid");
+    expect(resultEmpty.status).toBe("unresolved");
     expect(resultEmpty.value).toBeUndefined();
   });
 
@@ -279,7 +279,8 @@ describe("GutTS universal semantic input", () => {
         schema: {type: "string"},
       });
 
-      expect(result.status).toBe("invalid");
+      expect(result.status).toBe("failed");
+      expect(result.error?.code).toBe("MODEL_FAILURE");
       expect(result.value).toBeUndefined();
     });
   });\n

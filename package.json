@@ -17,7 +17,8 @@
     "./api": "./dist/api/index.js",
     "./models": "./dist/models/index.js",
     "./semantic-input": "./dist/semantic-input/index.js",
-    "./gutts.manifest.json": "./gutts.manifest.json"
+    "./gutts.manifest.json": "./gutts.manifest.json",
+    "./engineering": "./dist/engineering/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

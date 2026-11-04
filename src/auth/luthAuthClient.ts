@@ -31,6 +31,17 @@ const browserTokenStore: LuthAuthTokenStore = {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export function hydrateLuthTokenFromUrl(tokenStore: LuthAuthTokenStore = browserTokenStore): boolean {
+  if (typeof window === 'undefined' || !window.location?.search) return false;
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get('token')?.trim();
+  if (!token) return false;
+  tokenStore.set(token);
+  url.searchParams.delete('token');
+  window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : '') + url.hash);
+  return true;
+}
+
 export class LuthAuthClient {
   public readonly ecosystemId: string;
   public readonly applicationId: string;
@@ -53,6 +64,7 @@ export class LuthAuthClient {
     this.maxRetries = config.maxRetries ?? 3;
     this.retryDelayMs = config.retryDelayMs ?? 100;
     this.tokenStore = config.tokenStore || browserTokenStore;
+    hydrateLuthTokenFromUrl(this.tokenStore);
   }
 
   public getAuthHeaders(): HeadersInit {

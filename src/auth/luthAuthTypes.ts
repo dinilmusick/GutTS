@@ -72,6 +72,6 @@ export class LuthAuthError extends Error {
     super(`[${code}] ${message}`);
     this.name = 'LuthAuthError';
     this.code = code;
-    this.status = status;
+    if (status !== undefined) this.status = status;
   }
 }

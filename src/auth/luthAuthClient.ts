@@ -26,8 +26,8 @@ export function resolveClientEnvironment(origin: string): DeploymentEnvironment 
 export const DEFAULT_LUTH_URL = 'https://luth.blueprint-ninjastudios.workers.dev';
 
 const browserTokenStore: LuthAuthTokenStore = {
-  get: () => { try { return (sessionStorage.getItem('luth-session-token') || '').split('.')[0] || ''; } catch { return ''; } },
-  set: (token) => { try { sessionStorage.setItem('luth-session-token', (token || '').split('.')[0] || ''); } catch {} },
+  get: () => { try { return (sessionStorage.getItem('luth-session-token') || ''; } catch { return ''; } },
+  set: (token) => { try { sessionStorage.setItem('luth-session-token', token || ''); } catch {} },
   clear: () => { try { sessionStorage.removeItem('luth-session-token'); } catch {} },
 };
 
@@ -80,11 +80,14 @@ export class LuthAuthClient {
   }
 
   private async request(path: string, init: RequestInit = {}): Promise<Response> {
+    const headers = new Headers(init.headers);
+    const authHeaders = new Headers(this.getAuthHeaders());
+    authHeaders.forEach((value, key) => { if (!headers.has(key)) headers.set(key, value); });
     return fetch(`${this.luthUrl}${path}`, {
       ...init,
       credentials: init.credentials ?? 'include',
       cache: init.cache ?? 'no-store',
-      headers: { ...this.getAuthHeaders(), ...(init.headers || {}) },
+      headers,
     });
   }
 
@@ -147,6 +150,11 @@ export class LuthAuthClient {
     const result = await response.json() as LuthSessionResult;
     if (result.session?.token) this.tokenStore.set(result.session.token);
     return result;
+  }
+
+  /** Revalidates and hydrates the current Luth session using the canonical session endpoint. */
+  public async refreshSession(): Promise<LuthSessionResult> {
+    return this.getSession();
   }
 
   public async signInWithEmail(credentials: EmailSignInCredentials): Promise<unknown> {

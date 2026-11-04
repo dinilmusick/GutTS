@@ -19,7 +19,11 @@
     "./semantic-input": "./dist/semantic-input/index.js",
     "./gutts.manifest.json": "./gutts.manifest.json",
     "./engineering": "./dist/engineering/index.js",
-    "./auth": "./dist/auth/index.js"
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js",
+      "default": "./dist/auth/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -187,7 +187,8 @@ export class LuthAuthClient {
       body: JSON.stringify(body),
     });
     const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-    const token = response.headers.get('set-auth-token') || String(data.token || data.session?.token || '');
+    const session = data.session as Record<string, unknown> | undefined;
+    const token = response.headers.get('set-auth-token') || String(data.token || session?.token || '');
     if (token) this.tokenStore.set(token);
     if (!response.ok) {
       throw new LuthAuthError(String(data.code || 'AUTHENTICATION_FAILED'), String(data.message || fallback), response.status);

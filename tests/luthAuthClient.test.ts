@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LuthAuthClient, type LuthAuthTokenStore } from '../src/auth/luthAuthClient.js';
+import { LuthAuthClient, hydrateLuthTokenFromUrl, type LuthAuthTokenStore } from '../src/auth/luthAuthClient.js';
 
 function tokenStore(initial = ''): LuthAuthTokenStore {
   let token = initial;
@@ -51,6 +51,31 @@ describe('LuthAuthClient', () => {
     const secondSessionRequest = fetchMock.mock.calls[2]?.[1];
     const headers = new Headers(secondSessionRequest?.headers);
     expect(headers.get('authorization')).toBe('Bearer token-1');
+  });
+
+  it('hydrates an OAuth callback token from the URL and removes it from browser history', () => {
+    const store = tokenStore();
+    const originalWindow = globalThis.window;
+    const originalDocument = globalThis.document;
+    const replaceState = vi.fn();
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: { search: '?token=oauth-token&keep=1', pathname: '/', hash: '#workspace' },
+        history: { replaceState },
+      },
+    });
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: { title: 'Loky' },
+    });
+
+    expect(hydrateLuthTokenFromUrl(store)).toBe(true);
+    expect(store.get()).toBe('oauth-token');
+    expect(replaceState).toHaveBeenCalledWith({}, 'Loky', '/?keep=1#workspace');
+
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: originalDocument });
   });
 
   it('clears the token only after a successful sign-out and verifies invalidation', async () => {

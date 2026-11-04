@@ -53,6 +53,14 @@ describe('LuthAuthClient', () => {
     expect(headers.get('authorization')).toBe('Bearer token-1');
   });
 
+  it('preserves complete JWT-shaped tokens instead of truncating at the first dot', async () => {
+    const jwt = 'header.payload.signature';
+    const store = tokenStore();
+    const client = new LuthAuthClient({ ecosystemId: 'ultrst-armada', applicationId: 'test', origin: 'https://test.example', tokenStore: store });
+    store.set(jwt);
+    expect(new Headers(client.getAuthHeaders()).get('authorization')).toBe(`Bearer ${jwt}`);
+  });
+
   it('hydrates an OAuth callback token from the URL and removes it from browser history', () => {
     const store = tokenStore();
     const originalWindow = globalThis.window;

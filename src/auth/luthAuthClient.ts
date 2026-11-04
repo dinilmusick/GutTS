@@ -133,7 +133,7 @@ export class LuthAuthClient {
   public async getSession(): Promise<LuthSessionResult> {
     await this.ensureRegistered();
     const response = await this.request('/api/session');
-    const token = response.headers.get('set-auth-token');
+    const token = response.headers?.get?.('set-auth-token');
     if (token) this.tokenStore.set(token);
     if (response.status === 401) {
       this.clearAuthToken();
@@ -188,7 +188,7 @@ export class LuthAuthClient {
     });
     const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     const session = data.session as Record<string, unknown> | undefined;
-    const token = response.headers.get('set-auth-token') || String(data.token || session?.token || '');
+    const token = response.headers?.get?.('set-auth-token') || String(data.token || session?.token || '');
     if (token) this.tokenStore.set(token);
     if (!response.ok) {
       throw new LuthAuthError(String(data.code || 'AUTHENTICATION_FAILED'), String(data.message || fallback), response.status);

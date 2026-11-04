@@ -57,6 +57,14 @@ describe('LuthAuthClient', () => {
     const store = tokenStore('token-1');
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        registered: true,
+        ecosystemId: 'ultrst-armada',
+        applicationId: 'test',
+        origin: 'https://test.example',
+        environment: 'production',
+        authenticationEnabled: true,
+      }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ authenticated: false, error: 'SESSION_INVALID' }), { status: 401 }));
 
     const client = new LuthAuthClient({

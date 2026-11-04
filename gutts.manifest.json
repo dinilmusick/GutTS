@@ -30,7 +30,7 @@
     "@dinilmusick/gutts/api",
     "@dinilmusick/gutts/models",
     "@dinilmusick/gutts/semantic-input",
-    "@dinilmusick/gutts/auth",
-    "@dinilmusick/gutts/engineering"
+    "@dinilmusick/gutts/engineering",
+    "@dinilmusick/gutts/auth"
   ]
 }

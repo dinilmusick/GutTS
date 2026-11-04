@@ -26,7 +26,7 @@ export function resolveClientEnvironment(origin: string): DeploymentEnvironment 
 export const DEFAULT_LUTH_URL = 'https://luth.blueprint-ninjastudios.workers.dev';
 
 const browserTokenStore: LuthAuthTokenStore = {
-  get: () => { try { return (sessionStorage.getItem('luth-session-token') || ''; } catch { return ''; } },
+  get: () => { try { return sessionStorage.getItem('luth-session-token') || ''; } catch { return ''; } },
   set: (token) => { try { sessionStorage.setItem('luth-session-token', token || ''); } catch {} },
   clear: () => { try { sessionStorage.removeItem('luth-session-token'); } catch {} },
 };

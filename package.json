@@ -25,7 +25,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepublishOnly": "pnpm run build"
+    "prepublishOnly": "pnpm run build",
+    "prepare": "pnpm run build"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.2",

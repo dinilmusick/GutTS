@@ -23,6 +23,8 @@ export function resolveClientEnvironment(origin: string): DeploymentEnvironment 
   }
 }
 
+export const DEFAULT_LUTH_URL = 'https://luth.blueprint-ninjastudios.workers.dev';
+
 const browserTokenStore: LuthAuthTokenStore = {
   get: () => { try { return (sessionStorage.getItem('luth-session-token') || '').split('.')[0] || ''; } catch { return ''; } },
   set: (token) => { try { sessionStorage.setItem('luth-session-token', (token || '').split('.')[0] || ''); } catch {} },
@@ -57,7 +59,7 @@ export class LuthAuthClient {
   constructor(config: LuthAuthClientConfig) {
     this.ecosystemId = config.ecosystemId;
     this.applicationId = config.applicationId;
-    this.luthUrl = (config.luthUrl || 'https://luth.blueprint-ninjastudios.workers.dev').replace(/\/+$/, '');
+    this.luthUrl = (config.luthUrl || DEFAULT_LUTH_URL).replace(/\/+$/, '');
     this.origin = resolveClientOrigin(config.origin);
     this.environment = config.environment || resolveClientEnvironment(this.origin);
     this.autoRegister = config.autoRegister ?? true;

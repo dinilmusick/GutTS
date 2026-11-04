@@ -1,14 +1,9 @@
-import {
-  type DeploymentEnvironment,
-  type EmailSignInCredentials,
-  type EmailSignUpData,
-  type GoogleSignInOptions,
-  type LuthAuthClientConfig,
-  LuthAuthError,
-  type LuthAuthTokenStore,
-  type LuthSessionResult,
-  type RegisterApplicationResult,
+import type {
+  DeploymentEnvironment, EmailSignInCredentials, EmailSignUpData,
+  GoogleSignInOptions, LuthAuthClientConfig, LuthAuthTokenStore,
+  LuthSessionResult, RegisterApplicationResult,
 } from './luthAuthTypes.js';
+import { LuthAuthError } from './luthAuthTypes.js';
 
 export function resolveClientOrigin(explicitOrigin?: string): string {
   if (explicitOrigin?.trim()) return explicitOrigin.trim();
@@ -29,15 +24,9 @@ export function resolveClientEnvironment(origin: string): DeploymentEnvironment 
 }
 
 const browserTokenStore: LuthAuthTokenStore = {
-  get: () => {
-    try { return sessionStorage.getItem('luth-session-token') || ''; } catch { return ''; }
-  },
-  set: (token) => {
-    try { sessionStorage.setItem('luth-session-token', token); } catch {}
-  },
-  clear: () => {
-    try { sessionStorage.removeItem('luth-session-token'); } catch {}
-  },
+  get: () => { try { return (sessionStorage.getItem('luth-session-token') || '').split('.')[0] || ''; } catch { return ''; } },
+  set: (token) => { try { sessionStorage.setItem('luth-session-token', (token || '').split('.')[0] || ''); } catch {} },
+  clear: () => { try { sessionStorage.removeItem('luth-session-token'); } catch {} },
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

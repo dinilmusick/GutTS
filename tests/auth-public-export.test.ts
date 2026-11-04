@@ -14,7 +14,11 @@ describe('GutTS public authentication package export', () => {
     expect(fs.existsSync(path.join(root, auth.import))).toBe(true);
     expect(fs.existsSync(path.join(root, auth.types))).toBe(true);
     const declarations = fs.readFileSync(path.join(root, auth.types), 'utf8');
-    expect(declarations).toContain('LuthAuthClient');
-    expect(declarations).toContain('createLuthAuthClient');
+    expect(declarations).toContain("'./luthAuthClient.js'");
+    const clientDeclarations = path.join(root, 'dist/auth/luthAuthClient.d.ts');
+    expect(fs.existsSync(clientDeclarations)).toBe(true);
+    const clientTypes = fs.readFileSync(clientDeclarations, 'utf8');
+    expect(clientTypes).toContain('LuthAuthClient');
+    expect(clientTypes).toContain('createLuthAuthClient');
   });
 });

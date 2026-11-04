@@ -12,6 +12,7 @@ function tokenStore(initial = ''): LuthAuthTokenStore {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('LuthAuthClient', () => {
@@ -56,17 +57,15 @@ describe('LuthAuthClient', () => {
   it('preserves complete JWT-shaped tokens in the default browser token store', async () => {
     const jwt = 'header.payload.signature';
     const values = new Map<string, string>();
-    const originalStorage = globalThis.sessionStorage;
-    Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: {
+    vi.stubGlobal('sessionStorage', {
       getItem: (key: string) => values.get(key) ?? null,
       setItem: (key: string, value: string) => { values.set(key, value); },
       removeItem: (key: string) => { values.delete(key); },
-    } });
+    });
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200, headers: { 'set-auth-token': jwt } }));
     const client = new LuthAuthClient({ ecosystemId: 'ultrst-armada', applicationId: 'test', origin: 'https://test.example', autoRegister: false });
     await client.signInWithEmail({ email: 'test@example.com', password: 'secret' });
     expect(new Headers(client.getAuthHeaders()).get('authorization')).toBe(`Bearer ${jwt}`);
-    Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: originalStorage });
   });
 
   it('hydrates an OAuth callback token from the URL and removes it from browser history', () => {

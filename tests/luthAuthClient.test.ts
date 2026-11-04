@@ -61,7 +61,7 @@ describe('LuthAuthClient', () => {
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       value: {
-        location: { search: '?token=oauth-token&keep=1', pathname: '/', hash: '#workspace' },
+        location: { href: 'http://localhost/?token=oauth-token&keep=1#workspace', origin: 'http://localhost', search: '?token=oauth-token&keep=1', pathname: '/', hash: '#workspace' },
         history: { replaceState },
       },
     });

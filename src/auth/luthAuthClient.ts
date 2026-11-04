@@ -35,7 +35,8 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function hydrateLuthTokenFromUrl(tokenStore: LuthAuthTokenStore = browserTokenStore): boolean {
   if (typeof window === 'undefined' || !window.location?.search) return false;
-  const url = new URL(window.location.href);
+  const href = window.location.href || `${window.location.origin || 'http://localhost'}${window.location.pathname || '/'}${window.location.search}${window.location.hash || ''}`;
+  const url = new URL(href);
   const token = url.searchParams.get('token')?.trim();
   if (!token) return false;
   tokenStore.set(token);

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LuthAuthClient, hydrateLuthTokenFromUrl, type LuthAuthTokenStore } from '../src/auth/luthAuthClient.js';
+import { LuthAuthClient, hydrateLuthTokenFromUrl, resolveClientOrigin, type LuthAuthTokenStore } from '../src/auth/luthAuthClient.js';
 
 function tokenStore(initial = ''): LuthAuthTokenStore {
   let token = initial;
@@ -13,6 +13,60 @@ function tokenStore(initial = ''): LuthAuthTokenStore {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+
+describe('deployment origin resolution', () => {
+  it('prefers an explicit origin over browser origin and APP_URL', () => {
+    vi.stubEnv('APP_URL', 'https://env.example/path');
+    vi.stubGlobal('window', { location: { origin: 'https://browser.example' } });
+    expect(resolveClientOrigin('https://explicit.example/path')).toBe('https://explicit.example');
+  });
+
+  it('uses the browser origin when no explicit origin is supplied', () => {
+    vi.stubEnv('APP_URL', 'https://env.example');
+    vi.stubGlobal('window', { location: { origin: 'https://browser.example' } });
+    expect(resolveClientOrigin()).toBe('https://browser.example');
+  });
+
+  it('uses APP_URL when no browser exists', () => {
+    vi.stubEnv('APP_URL', 'https://app.example/path');
+    expect(resolveClientOrigin()).toBe('https://app.example');
+  });
+
+  it('returns an empty origin when neither browser nor APP_URL exists', () => {
+    vi.stubEnv('APP_URL', '');
+    expect(resolveClientOrigin()).toBe('');
+  });
+
+  it('fails visibly when a non-browser client has no deployment origin', () => {
+    vi.stubEnv('APP_URL', '');
+    expect(() => new LuthAuthClient({
+      ecosystemId: 'ultrst-armada',
+      applicationId: 'test',
+      autoRegister: false,
+    })).toThrow(/APPLICATION_ORIGIN_UNAVAILABLE/);
+  });
+
+  it('sends the resolved non-browser APP_URL origin during registration', async () => {
+    vi.stubEnv('APP_URL', 'https://client.example/path');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      registered: true,
+      ecosystemId: 'ultrst-armada',
+      applicationId: 'test',
+      origin: 'https://client.example',
+      environment: 'production',
+      authenticationEnabled: true,
+    }), { status: 200 }));
+    const client = new LuthAuthClient({
+      ecosystemId: 'ultrst-armada',
+      applicationId: 'test',
+    });
+    await client.register();
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.origin).toBe('https://client.example');
+    expect(body.environment).toBe('production');
+  });
 });
 
 describe('LuthAuthClient', () => {

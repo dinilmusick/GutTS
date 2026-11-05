@@ -21,6 +21,8 @@ export interface LuthAuthClientConfig {
   autoRegister?: boolean;
   maxRetries?: number;
   retryDelayMs?: number;
+  /** Per-request fetch timeout in milliseconds. Set to 0 to disable. */
+  timeoutMs?: number;
   tokenStore?: LuthAuthTokenStore;
 }
 

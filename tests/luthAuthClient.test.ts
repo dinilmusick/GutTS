@@ -157,6 +157,77 @@ describe('LuthAuthClient', () => {
     expect(fetchMock.mock.calls[1]?.[0]).toBe(`${secondaryUrl}/api/registry/register`);
   });
 
+  it('round-robins healthy requests across the configured Luth pool', async () => {
+    const urls = [
+      'https://luth-one.internal',
+      'https://luth-two.internal',
+      'https://luth-three.internal',
+    ];
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      return new Response(JSON.stringify({
+        authenticated: true,
+        user: { id: url.includes('one') ? 'u1' : url.includes('two') ? 'u2' : 'u3', name: 'User', email: 'user@example.com' },
+        session: { id: 's1', userId: 'u1', expiresAt: new Date().toISOString() },
+      }), { status: 200 });
+    });
+
+    const client = new LuthAuthClient({
+      ecosystemId: 'ultrst-armada',
+      applicationId: 'test',
+      luthUrls: urls,
+      origin: 'https://test.example',
+      autoRegister: false,
+    });
+
+    await client.getSession();
+    await client.getSession();
+    await client.getSession();
+    await client.getSession();
+
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+      'https://luth-one.internal/api/session',
+      'https://luth-two.internal/api/session',
+      'https://luth-three.internal/api/session',
+      'https://luth-one.internal/api/session',
+    ]);
+  });
+
+  it('times out a stalled Luth deployment and fails over to the next deployment', async () => {
+    const primaryUrl = 'https://luth-stalled.internal';
+    const secondaryUrl = 'https://luth-healthy.internal';
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      if (String(input).startsWith(primaryUrl)) {
+        return new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason || new Error('aborted')), { once: true });
+        });
+      }
+      return Promise.resolve(new Response(JSON.stringify({
+        authenticated: true,
+        user: { id: 'u-timeout', name: 'Healthy', email: 'healthy@example.com' },
+        session: { id: 's-timeout', userId: 'u-timeout', expiresAt: new Date().toISOString() },
+      }), { status: 200 }));
+    });
+
+    const client = new LuthAuthClient({
+      ecosystemId: 'ultrst-armada',
+      applicationId: 'test',
+      luthUrls: [primaryUrl, secondaryUrl],
+      origin: 'https://test.example',
+      autoRegister: false,
+      timeoutMs: 5,
+    });
+
+    const session = await client.getSession();
+
+    expect(session.authenticated).toBe(true);
+    expect(client.luthUrl).toBe(secondaryUrl);
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+      'https://luth-stalled.internal/api/session',
+      'https://luth-healthy.internal/api/session',
+    ]);
+  });
+
   it('resolves dynamic Luth URLs using luthUrlResolver', async () => {
     const dynamicUrl = 'https://luth-discovered.internal';
     vi.spyOn(globalThis, 'fetch')

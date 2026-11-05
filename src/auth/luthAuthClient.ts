@@ -56,6 +56,7 @@ export class LuthAuthClient {
   private readonly autoRegister: boolean;
   private readonly maxRetries: number;
   private readonly retryDelayMs: number;
+  private readonly timeoutMs: number;
   private readonly tokenStore: LuthAuthTokenStore;
   private registrationPromise: Promise<RegisterApplicationResult> | null = null;
 
@@ -80,6 +81,7 @@ export class LuthAuthClient {
     this.autoRegister = config.autoRegister ?? true;
     this.maxRetries = config.maxRetries ?? 3;
     this.retryDelayMs = config.retryDelayMs ?? 100;
+    this.timeoutMs = Math.max(0, config.timeoutMs ?? 10000);
     this.tokenStore = config.tokenStore || browserTokenStore;
     hydrateLuthTokenFromUrl(this.tokenStore);
   }
@@ -98,7 +100,7 @@ export class LuthAuthClient {
       try {
         const resolved = await this.luthUrlResolver();
         const urls = Array.isArray(resolved) ? resolved : [resolved];
-        const cleaned = urls.filter(Boolean).map((u) => u.replace(/\/+$/, ''));
+        const cleaned = urls.filter(Boolean).map((u) => u.replace(/\\/+$/, ''));
         if (cleaned.length > 0) {
           this._luthUrls = Array.from(new Set([...cleaned, ...this._luthUrls]));
         }
@@ -110,29 +112,55 @@ export class LuthAuthClient {
     authHeaders.forEach((value, key) => { if (!headers.has(key)) headers.set(key, value); });
 
     let lastError: unknown = null;
-    const startIndex = this._activeUrlIndex;
     const poolSize = this._luthUrls.length;
+    const retryCycles = Math.max(1, this.maxRetries + 1);
+    const initialIndex = this._activeUrlIndex;
+    const startIndex = poolSize > 1 ? (initialIndex + 1) % poolSize : 0;
 
-    for (let i = 0; i < poolSize; i++) {
-      const idx = (startIndex + i) % poolSize;
-      const targetUrl = this._luthUrls[idx];
-      try {
-        const response = await fetch(`${targetUrl}${path}`, {
-          ...init,
-          credentials: init.credentials ?? 'include',
-          cache: init.cache ?? 'no-store',
-          headers,
-        });
-        if ((response.status === 502 || response.status === 503 || response.status === 504) && i < poolSize - 1) {
-          continue;
+    for (let cycle = 0; cycle < retryCycles; cycle++) {
+      for (let offset = 0; offset < poolSize; offset++) {
+        const idx = (startIndex + offset + cycle * poolSize) % poolSize;
+        const targetUrl = this._luthUrls[idx];
+        const controller = this.timeoutMs > 0 ? new AbortController() : null;
+        const timeout = controller ? setTimeout(() => controller.abort(), this.timeoutMs) : null;
+        let removeAbortListener: (() => void) | undefined;
+
+        try {
+          if (controller && init.signal) {
+            if (init.signal.aborted) controller.abort(init.signal.reason);
+            else {
+              const onAbort = () => controller.abort(init.signal?.reason);
+              init.signal.addEventListener('abort', onAbort, { once: true });
+              removeAbortListener = () => init.signal?.removeEventListener('abort', onAbort);
+            }
+          }
+
+          const response = await fetch(`${targetUrl}${path}`, {
+            ...init,
+            credentials: init.credentials ?? 'include',
+            cache: init.cache ?? 'no-store',
+            headers,
+            ...(controller ? { signal: controller.signal } : {}),
+          });
+
+          if (response.status === 502 || response.status === 503 || response.status === 504) {
+            lastError = new LuthAuthError('LUTH_DEPLOYMENT_UNAVAILABLE', `Luth deployment unavailable (${response.status})`, response.status);
+            continue;
+          }
+
+          this._activeUrlIndex = idx;
+          return response;
+        } catch (err) {
+          lastError = err;
+        } finally {
+          if (timeout) clearTimeout(timeout);
+          removeAbortListener?.();
         }
-        this._activeUrlIndex = idx;
-        return response;
-      } catch (err) {
-        lastError = err;
-        if (i < poolSize - 1) continue;
       }
+
+      if (cycle < retryCycles - 1) await sleep(this.retryDelayMs * 2 ** cycle);
     }
+
     throw lastError || new Error('Luth request failed: all endpoints exhausted.');
   }
 

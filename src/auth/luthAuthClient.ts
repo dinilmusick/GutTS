@@ -5,10 +5,30 @@ import type {
 } from './luthAuthTypes.js';
 import { LuthAuthError } from './luthAuthTypes.js';
 
+function normalizeOrigin(value: string): string {
+  try {
+    return new URL(value.trim()).origin;
+  } catch {
+    return '';
+  }
+}
+
+export function resolveRuntimeAppUrl(): string {
+  const runtimeProcess = (globalThis as {
+    process?: { env?: Record<string, string | undefined> };
+  }).process;
+  return runtimeProcess?.env?.APP_URL?.trim() || '';
+}
+
 export function resolveClientOrigin(explicitOrigin?: string): string {
-  if (explicitOrigin?.trim()) return explicitOrigin.trim();
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  return '';
+  const explicit = explicitOrigin?.trim();
+  if (explicit) return normalizeOrigin(explicit);
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return normalizeOrigin(window.location.origin);
+  }
+
+  return normalizeOrigin(resolveRuntimeAppUrl());
 }
 
 export function resolveClientEnvironment(origin: string): DeploymentEnvironment {
@@ -77,6 +97,12 @@ export class LuthAuthClient {
     this._luthUrls = Array.from(new Set(initialUrls));
     this.luthUrlResolver = config.luthUrlResolver;
     this.origin = resolveClientOrigin(config.origin);
+    if (!this.origin) {
+      throw new LuthAuthError(
+        'APPLICATION_ORIGIN_UNAVAILABLE',
+        'Application deployment origin is unavailable. Set APP_URL or supply an explicit origin.',
+      );
+    }
     this.environment = config.environment || resolveClientEnvironment(this.origin);
     this.autoRegister = config.autoRegister ?? true;
     this.maxRetries = config.maxRetries ?? 3;

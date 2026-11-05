@@ -48,19 +48,33 @@ export function hydrateLuthTokenFromUrl(tokenStore: LuthAuthTokenStore = browser
 export class LuthAuthClient {
   public readonly ecosystemId: string;
   public readonly applicationId: string;
-  public readonly luthUrl: string;
   public readonly origin: string;
   public readonly environment: DeploymentEnvironment;
+  private _luthUrls: string[];
+  private _activeUrlIndex = 0;
+  private readonly luthUrlResolver?: (() => Promise<string[] | string>) | undefined;
   private readonly autoRegister: boolean;
   private readonly maxRetries: number;
   private readonly retryDelayMs: number;
   private readonly tokenStore: LuthAuthTokenStore;
   private registrationPromise: Promise<RegisterApplicationResult> | null = null;
 
+  public get luthUrl(): string {
+    return this._luthUrls[this._activeUrlIndex] || DEFAULT_LUTH_URL;
+  }
+
+  public get luthUrls(): string[] {
+    return [...this._luthUrls];
+  }
+
   constructor(config: LuthAuthClientConfig) {
     this.ecosystemId = config.ecosystemId;
     this.applicationId = config.applicationId;
-    this.luthUrl = (config.luthUrl || DEFAULT_LUTH_URL).replace(/\/+$/, '');
+    const initialUrls = (config.luthUrls && config.luthUrls.length > 0)
+      ? config.luthUrls.map((u) => u.replace(/\/+$/, ''))
+      : [(config.luthUrl || DEFAULT_LUTH_URL).replace(/\/+$/, '')];
+    this._luthUrls = Array.from(new Set(initialUrls));
+    this.luthUrlResolver = config.luthUrlResolver;
     this.origin = resolveClientOrigin(config.origin);
     this.environment = config.environment || resolveClientEnvironment(this.origin);
     this.autoRegister = config.autoRegister ?? true;
@@ -80,15 +94,46 @@ export class LuthAuthClient {
   }
 
   private async request(path: string, init: RequestInit = {}): Promise<Response> {
+    if (this.luthUrlResolver && this._luthUrls.length <= 1) {
+      try {
+        const resolved = await this.luthUrlResolver();
+        const urls = Array.isArray(resolved) ? resolved : [resolved];
+        const cleaned = urls.filter(Boolean).map((u) => u.replace(/\/+$/, ''));
+        if (cleaned.length > 0) {
+          this._luthUrls = Array.from(new Set([...cleaned, ...this._luthUrls]));
+        }
+      } catch {}
+    }
+
     const headers = new Headers(init.headers);
     const authHeaders = new Headers(this.getAuthHeaders());
     authHeaders.forEach((value, key) => { if (!headers.has(key)) headers.set(key, value); });
-    return fetch(`${this.luthUrl}${path}`, {
-      ...init,
-      credentials: init.credentials ?? 'include',
-      cache: init.cache ?? 'no-store',
-      headers,
-    });
+
+    let lastError: unknown = null;
+    const startIndex = this._activeUrlIndex;
+    const poolSize = this._luthUrls.length;
+
+    for (let i = 0; i < poolSize; i++) {
+      const idx = (startIndex + i) % poolSize;
+      const targetUrl = this._luthUrls[idx];
+      try {
+        const response = await fetch(`${targetUrl}${path}`, {
+          ...init,
+          credentials: init.credentials ?? 'include',
+          cache: init.cache ?? 'no-store',
+          headers,
+        });
+        if ((response.status === 502 || response.status === 503 || response.status === 504) && i < poolSize - 1) {
+          continue;
+        }
+        this._activeUrlIndex = idx;
+        return response;
+      } catch (err) {
+        lastError = err;
+        if (i < poolSize - 1) continue;
+      }
+    }
+    throw lastError || new Error('Luth request failed: all endpoints exhausted.');
   }
 
   public async register(): Promise<RegisterApplicationResult> {

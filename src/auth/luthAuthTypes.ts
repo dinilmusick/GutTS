@@ -1,9 +1,21 @@
 export type DeploymentEnvironment = 'production' | 'staging' | 'preview' | 'development';
 
+export interface LuthDeploymentRecord {
+  id: string;
+  url: string;
+  label?: string;
+  environment?: DeploymentEnvironment;
+  isActive: boolean;
+  isPrimary?: boolean;
+  priority?: number;
+}
+
 export interface LuthAuthClientConfig {
   ecosystemId: string;
   applicationId: string;
   luthUrl?: string;
+  luthUrls?: string[];
+  luthUrlResolver?: () => Promise<string[] | string>;
   origin?: string;
   environment?: DeploymentEnvironment;
   autoRegister?: boolean;

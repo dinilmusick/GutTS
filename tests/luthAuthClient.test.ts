@@ -117,4 +117,66 @@ describe('LuthAuthClient', () => {
     await client.signOut();
     expect(store.get()).toBe('');
   });
+
+  it('fails over to alternate Luth URL when primary deployment fails', async () => {
+    const primaryUrl = 'https://luth-primary.internal';
+    const secondaryUrl = 'https://luth-secondary.internal';
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      // Primary fails with 503 Service Unavailable
+      .mockResolvedValueOnce(new Response('Unavailable', { status: 503 }))
+      // Secondary succeeds for registration
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        registered: true,
+        ecosystemId: 'ultrst-armada',
+        applicationId: 'test',
+        origin: 'https://test.example',
+        environment: 'production',
+        authenticationEnabled: true,
+      }), { status: 200 }))
+      // Secondary succeeds for session
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        authenticated: true,
+        user: { id: 'u2', name: 'Secondary User', email: 'sec@example.com' },
+        session: { id: 's2', userId: 'u2', expiresAt: new Date().toISOString() },
+      }), { status: 200 }));
+
+    const client = new LuthAuthClient({
+      ecosystemId: 'ultrst-armada',
+      applicationId: 'test',
+      luthUrls: [primaryUrl, secondaryUrl],
+      origin: 'https://test.example',
+      autoRegister: true,
+    });
+
+    const session = await client.getSession();
+    expect(session.authenticated).toBe(true);
+    expect(session.user?.id).toBe('u2');
+    expect(client.luthUrl).toBe(secondaryUrl);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${primaryUrl}/api/registry/register`);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(`${secondaryUrl}/api/registry/register`);
+  });
+
+  it('resolves dynamic Luth URLs using luthUrlResolver', async () => {
+    const dynamicUrl = 'https://luth-discovered.internal';
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        authenticated: true,
+        user: { id: 'u3', name: 'Discovered', email: 'disc@example.com' },
+        session: { id: 's3', userId: 'u3', expiresAt: new Date().toISOString() },
+      }), { status: 200 }));
+
+    const client = new LuthAuthClient({
+      ecosystemId: 'ultrst-armada',
+      applicationId: 'test',
+      luthUrlResolver: async () => [dynamicUrl],
+      origin: 'https://test.example',
+      autoRegister: false,
+    });
+
+    const session = await client.getSession();
+    expect(session.authenticated).toBe(true);
+    expect(client.luthUrls).toContain(dynamicUrl);
+  });
 });
+

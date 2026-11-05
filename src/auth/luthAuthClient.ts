@@ -72,6 +72,7 @@ export class LuthAuthClient {
   public readonly environment: DeploymentEnvironment;
   private _luthUrls: string[];
   private _activeUrlIndex = 0;
+  private _nextUrlIndex = 0;
   private readonly luthUrlResolver?: (() => Promise<string[] | string>) | undefined;
   private readonly autoRegister: boolean;
   private readonly maxRetries: number;
@@ -126,7 +127,7 @@ export class LuthAuthClient {
       try {
         const resolved = await this.luthUrlResolver();
         const urls = Array.isArray(resolved) ? resolved : [resolved];
-        const cleaned = urls.filter(Boolean).map((u) => u.replace(/\\/+$/, ''));
+        const cleaned = urls.filter(Boolean).map((u) => u.replace(/\/+$/, ''));
         if (cleaned.length > 0) {
           this._luthUrls = Array.from(new Set([...cleaned, ...this._luthUrls]));
         }
@@ -140,12 +141,11 @@ export class LuthAuthClient {
     let lastError: unknown = null;
     const poolSize = this._luthUrls.length;
     const retryCycles = Math.max(1, this.maxRetries + 1);
-    const initialIndex = this._activeUrlIndex;
-    const startIndex = poolSize > 1 ? (initialIndex + 1) % poolSize : 0;
+    const startIndex = poolSize > 1 ? (this._nextUrlIndex % poolSize) : 0;
 
     for (let cycle = 0; cycle < retryCycles; cycle++) {
       for (let offset = 0; offset < poolSize; offset++) {
-        const idx = (startIndex + offset + cycle * poolSize) % poolSize;
+        const idx = (startIndex + offset) % poolSize;
         const targetUrl = this._luthUrls[idx];
         const controller = this.timeoutMs > 0 ? new AbortController() : null;
         const timeout = controller ? setTimeout(() => controller.abort(), this.timeoutMs) : null;
@@ -175,6 +175,7 @@ export class LuthAuthClient {
           }
 
           this._activeUrlIndex = idx;
+          this._nextUrlIndex = offset === 0 ? (idx + 1) % poolSize : idx;
           return response;
         } catch (err) {
           lastError = err;

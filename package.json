@@ -1,6 +1,6 @@
 {
   "name": "@dinilmusick/gutts",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": false,
   "description": "Global Utilities for TypeScript applications.",
   "type": "module",
@@ -23,7 +23,8 @@
       "types": "./dist/auth/index.d.ts",
       "import": "./dist/auth/index.js",
       "default": "./dist/auth/index.js"
-    }
+    },
+    "./storage": "./dist/storage/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -36,7 +37,9 @@
     "@huggingface/transformers": "^4.3.2",
     "cactus-needle": "^0.3.0",
     "lodash-es": "^4.17.21",
-    "validator": "^13.15.15"
+    "validator": "^13.15.15",
+    "@aws-sdk/client-s3": "^3.1164.0",
+    "googleapis": "^189.0.0"
   },
   "pnpm": {
     "overrides": {

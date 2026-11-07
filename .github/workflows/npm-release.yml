@@ -1,6 +1,8 @@
 name: npm Release
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: ["GutTS CI"]
     types: [completed]

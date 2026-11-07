@@ -33,3 +33,5 @@ GutTS is an aggregation layer, not a collection of reimplemented utility algorit
 - Keep category facades stable.
 - Keep shared types beside the category that owns them.
 - Add regression tests for every public utility family and model lifecycle guarantee.
+
+<!-- storage-provider-ci-validation -->

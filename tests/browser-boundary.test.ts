@@ -77,7 +77,7 @@ describe("GutTS browser/server dependency boundary", () => {
   });
 
   it("keeps the built browser closure free of server implementations and Node runtime imports", () => {
-    const entry = path.join(root, "dist", "index.js");
+    const entry = path.join(root, "dist", "browser.js");
     expect(fs.existsSync(entry)).toBe(true);
     const closure = collectBrowserClosure(entry);
     for (const file of closure) {

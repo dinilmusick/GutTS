@@ -36,20 +36,26 @@
     "prepare": "pnpm run build"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.3.2",
-    "cactus-needle": "^0.3.0",
     "lodash-es": "^4.17.21",
     "validator": "^13.15.15"
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.1164.0",
-    "googleapis": "^189.0.0"
+    "googleapis": "^189.0.0",
+    "@huggingface/transformers": "^4.3.2",
+    "cactus-needle": "^0.3.0"
   },
   "peerDependenciesMeta": {
     "@aws-sdk/client-s3": {
       "optional": true
     },
     "googleapis": {
+      "optional": true
+    },
+    "@huggingface/transformers": {
+      "optional": true
+    },
+    "cactus-needle": {
       "optional": true
     }
   },
@@ -59,7 +65,9 @@
     "@types/validator": "^13.12.2",
     "googleapis": "^189.0.0",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@huggingface/transformers": "^4.3.2",
+    "cactus-needle": "^0.3.0"
   },
   "files": [
     "dist",

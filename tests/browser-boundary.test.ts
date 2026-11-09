@@ -27,9 +27,6 @@ function localImportTargets(source: string): string[] {
   }
   return [...targets];
 }
-  }
-  return [...targets];
-}
 
 function resolveDistModule(from: string, specifier: string): string {
   const base = path.resolve(path.dirname(from), specifier);

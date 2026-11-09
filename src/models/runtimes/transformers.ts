@@ -9,50 +9,12 @@ type DisposablePipeline = {
   dispose?: () => Promise<void> | void;
 };
 
-async function ensureOrtInputMetadataPolyfill() {
-  try {
-    const {createRequire} = await import("module");
-    const require = createRequire(import.meta.resolve("@huggingface/transformers"));
-    const ort = require("onnxruntime-node");
-    if (ort?.InferenceSession?.prototype && !("inputMetadata" in ort.InferenceSession.prototype)) {
-      Object.defineProperty(ort.InferenceSession.prototype, "inputMetadata", {
-        get() {
-          return (this.inputNames ?? []).map((name: string) => ({
-            name,
-            type: "float32",
-            shape: ["batch_size", 3, 0, 64],
-          }));
-        },
-        configurable: true,
-      });
-    }
-  } catch {
-    // If running in an environment where onnxruntime-node is patched or unavailable, proceed
-  }
-}
-
 export const smolLM2Runtime: ModelRuntime<SmolLM2Model> = {
   async load() {
-    await ensureOrtInputMetadataPolyfill();
     const {pipeline} = await import("@huggingface/transformers");
     const pipe = (await pipeline("text-generation", "HuggingFaceTB/SmolLM2-135M-Instruct", {
       dtype: "q4",
     })) as unknown as DisposablePipeline;
-    const sessions = (pipe as unknown as {model?: {sessions?: Record<string, unknown>}}).model?.sessions ?? {};
-    for (const session of Object.values(sessions)) {
-      if (session && typeof session === "object" && !("inputMetadata" in session)) {
-        Object.defineProperty(Object.getPrototypeOf(session), "inputMetadata", {
-          get() {
-            return ((this as {inputNames?: string[]}).inputNames ?? []).map((name: string) => ({
-              name,
-              type: "float32",
-              shape: ["batch_size", 3, 0, 64],
-            }));
-          },
-          configurable: true,
-        });
-      }
-    }
     return {
       generate: async (input) => {
         const output = await pipe(input.prompt, {
@@ -74,7 +36,6 @@ export const smolLM2Runtime: ModelRuntime<SmolLM2Model> = {
 
 export const miniLMRuntime: ModelRuntime<MiniLMModel> = {
   async load() {
-    await ensureOrtInputMetadataPolyfill();
     const {pipeline} = await import("@huggingface/transformers");
     const pipe = (await pipeline("feature-extraction", "sentence-transformers/all-MiniLM-L6-v2")) as unknown as DisposablePipeline;
     return {
@@ -95,7 +56,6 @@ export const miniLMRuntime: ModelRuntime<MiniLMModel> = {
 
 export const ettinRuntime: ModelRuntime<EttinRerankerModel> = {
   async load(metadata) {
-    await ensureOrtInputMetadataPolyfill();
     const {AutoTokenizer, AutoModel} = await import("@huggingface/transformers");
     const targetModel = metadata.modelUri ?? "cross-encoder/ettin-reranker-17m-v1";
     const [tokenizer, model, headWeights] = await Promise.all([

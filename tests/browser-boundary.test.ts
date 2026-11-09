@@ -89,6 +89,20 @@ describe("GutTS browser/server dependency boundary", () => {
     expect([...closure].some((file) => file.includes(`${path.sep}storage${path.sep}`))).toBe(false);
   });
 
+  it("keeps the universal root free of optional server-only implementations", () => {
+    const rootEntry = path.join(root, "dist", "index.js");
+    expect(fs.existsSync(rootEntry)).toBe(true);
+    const closure = collectBrowserClosure(rootEntry);
+    for (const file of closure) {
+      const source = fs.readFileSync(file, "utf8");
+      for (const pattern of forbidden) {
+        expect(source, `${file} matched ${pattern}`).not.toMatch(pattern);
+      }
+    }
+    expect([...closure].some((file) => file.includes(`${path.sep}storage${path.sep}`))).toBe(false);
+    expect([...closure].some((file) => file.includes(`${path.sep}server${path.sep}`))).toBe(false);
+  });
+
   it("keeps server storage available without exposing it from the browser root", () => {
     const browserSource = fs.readFileSync(path.join(root, "dist", "browser.js"), "utf8");
     const serverSource = fs.readFileSync(path.join(root, "dist", "server", "index.js"), "utf8");

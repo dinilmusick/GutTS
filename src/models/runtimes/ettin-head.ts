@@ -1,6 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
+const weightCache = new Map<string, ArrayBuffer>();
 
 export type EttinHeadWeights = {
   w1: Float32Array;
@@ -11,20 +9,13 @@ export type EttinHeadWeights = {
 };
 
 async function loadSafetensors(modelUri: string, subpath: string): Promise<Record<string, Float32Array>> {
-  const cacheDir = path.join(os.homedir(), ".cache", "gutts", modelUri, path.dirname(subpath));
-  fs.mkdirSync(cacheDir, {recursive: true});
-  const cacheFile = path.join(cacheDir, path.basename(subpath));
-
-  let buf: ArrayBuffer;
-  if (fs.existsSync(cacheFile)) {
-    const fileBuf = fs.readFileSync(cacheFile);
-    buf = fileBuf.buffer.slice(fileBuf.byteOffset, fileBuf.byteOffset + fileBuf.byteLength);
-  } else {
-    const url = `https://huggingface.co/${modelUri}/resolve/main/${subpath}`;
+  const url = `https://huggingface.co/${modelUri}/resolve/main/${subpath}`;
+  let buf = weightCache.get(url);
+  if (!buf) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to download Ettin head weights from ${url}: ${res.statusText}`);
     buf = await res.arrayBuffer();
-    fs.writeFileSync(cacheFile, Buffer.from(buf));
+    weightCache.set(url, buf);
   }
 
   const view = new DataView(buf);

@@ -9,6 +9,7 @@
     "requiresExplicitEvidence": true
   },
   "categories": [
+    "browser",
     "json",
     "strings",
     "arrays",
@@ -18,10 +19,13 @@
     "api",
     "models",
     "semantic-input",
+    "engineering",
     "auth",
+    "server",
     "storage"
   ],
   "exports": [
+    "@dinilmusick/gutts/browser",
     "@dinilmusick/gutts/json",
     "@dinilmusick/gutts/strings",
     "@dinilmusick/gutts/arrays",
@@ -33,6 +37,7 @@
     "@dinilmusick/gutts/semantic-input",
     "@dinilmusick/gutts/engineering",
     "@dinilmusick/gutts/auth",
-    "@dinilmusick/gutts/storage"
+    "@dinilmusick/gutts/storage",
+    "@dinilmusick/gutts/server"
   ]
 }

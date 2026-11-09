@@ -33,7 +33,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "pnpm run build",
-    "prepare": "pnpm run build"
+    "prepare": "pnpm run build",
+    "boundary": "node scripts/architecture-boundary.mjs"
   },
   "dependencies": {
     "lodash-es": "^4.17.21",

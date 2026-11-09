@@ -15,9 +15,9 @@ const forbidden = [
 function localImportTargets(source: string): string[] {
   const targets = new Set<string>();
   const patterns = [
-    /import\\s+(?:(?:\\*\\s+as\\s+\\w+)|(?:\\{[^}]*\\})|(?:[\\w\\s,{}*]+))\\s+from\\s+["']([^"']+)["']/g,
-    /import\\(\\s*["']([^"']+)["']\\s*\\)/g,
-    /export\\s+(?:\\*\\s+from|\\{[^}]*\\}\\s+from)\\s+["']([^"']+)["']/g,
+    /import\s+(?:(?:\*\s+as\s+\w+)|(?:\{[^}]*\\})|(?:[\w\s,{}*]+))\s+from\s+["']([^"']+)["']/g,
+    /import\(\s*["']([^"']+)["']\s*\)/g,
+    /export\s+(?:\*\s+from|\{[^}]*\\}\s+from)\s+["']([^"']+)["']/g,
   ];
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {

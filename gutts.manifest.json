@@ -2,7 +2,7 @@
   "$schema": "https://skipo.dev/schemas/gutts-manifest.v1.json",
   "package": "@dinilmusick/gutts",
   "packageType": "global-utility",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "promotion": {
     "eligible": true,
     "scope": "global",
@@ -40,4 +40,4 @@
     "@dinilmusick/gutts/storage",
     "@dinilmusick/gutts/server"
   ]
-}
+}\n

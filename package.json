@@ -34,7 +34,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "pnpm run build",
     "prepare": "pnpm run build",
-    "boundary": "node scripts/architecture-boundary.mjs"
+    "boundary": "node scripts/architecture-boundary.mjs",
+    "test:public-exports": "node scripts/test-public-exports.mjs",
+    "test:published": "node scripts/test-published-package.mjs"
   },
   "dependencies": {
     "lodash-es": "^4.17.21",

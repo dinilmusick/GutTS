@@ -3,7 +3,41 @@
   "package": "@dinilmusick/gutts",
   "packageType": "global-utility",
   "version": "2.0.0",
-  "promotion": {"eligible": true, "scope": "global", "requiresExplicitEvidence": true},
-  "categories": ["browser","json","strings","arrays","objects","numbers","urls","api","models","semantic-input","engineering","auth","server","storage"],
-  "exports": ["@dinilmusick/gutts/browser","@dinilmusick/gutts/json","@dinilmusick/gutts/strings","@dinilmusick/gutts/arrays","@dinilmusick/gutts/objects","@dinilmusick/gutts/numbers","@dinilmusick/gutts/urls","@dinilmusick/gutts/api","@dinilmusick/gutts/models","@dinilmusick/gutts/semantic-input","@dinilmusick/gutts/engineering","@dinilmusick/gutts/auth","@dinilmusick/gutts/storage","@dinilmusick/gutts/server"]
+  "promotion": {
+    "eligible": true,
+    "scope": "global",
+    "requiresExplicitEvidence": true
+  },
+  "categories": [
+    "browser",
+    "json",
+    "strings",
+    "arrays",
+    "objects",
+    "numbers",
+    "urls",
+    "api",
+    "models",
+    "semantic-input",
+    "engineering",
+    "auth",
+    "server",
+    "storage"
+  ],
+  "exports": [
+    "@dinilmusick/gutts/browser",
+    "@dinilmusick/gutts/json",
+    "@dinilmusick/gutts/strings",
+    "@dinilmusick/gutts/arrays",
+    "@dinilmusick/gutts/objects",
+    "@dinilmusick/gutts/numbers",
+    "@dinilmusick/gutts/urls",
+    "@dinilmusick/gutts/api",
+    "@dinilmusick/gutts/models",
+    "@dinilmusick/gutts/semantic-input",
+    "@dinilmusick/gutts/engineering",
+    "@dinilmusick/gutts/auth",
+    "@dinilmusick/gutts/storage",
+    "@dinilmusick/gutts/server"
+  ]
 }

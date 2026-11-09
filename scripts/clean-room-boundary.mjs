@@ -4,6 +4,7 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 
 const root = process.cwd();
+const reportPath = path.join(root, ".clean-room-boundary-report.json");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const exportsMap = pkg.exports;
 if (!exportsMap || typeof exportsMap !== "object") {
@@ -49,6 +50,7 @@ try {
   for (const file of files) {
     if (file.startsWith(".git/") || file.startsWith("node_modules/") || /(^|\/)(?:\.env|\.env\.|credentials|secrets)(?:$|\.)/i.test(file)) throw new Error("Published package contains forbidden artifact: " + file);
   }
+  fs.writeFileSync(reportPath, JSON.stringify({package: pkg.name, version: pkg.version, status: "passed", exportsProbed: publicKeys}, null, 2) + "\n");
   console.log("CLEAN-ROOM BOUNDARY PASSED: " + pkg.name + "@" + pkg.version);
 } finally {
   fs.rmSync(temp, {recursive: true, force: true});

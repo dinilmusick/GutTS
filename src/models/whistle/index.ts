@@ -1,7 +1,7 @@
 import {defineApi} from "../../api/define-api.js";
 import {ModelLibrary} from "../model-library.js";
 import type {ModelRuntime} from "../model-types.js";
-import {cactusWhistleRuntime} from "../runtimes/cactus.js";
+import {cactusWhistleRuntime} from "../runtimes/cactus-browser.js";
 
 export type WhistleModel = {
   transcribe(input: {audio: Uint8Array; language?: string}): Promise<string>;

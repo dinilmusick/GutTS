@@ -16,8 +16,7 @@ type CactusWhistle = {
 
 export const cactusNeedle3Runtime: ModelRuntime<Needle3Model> = {
   async load() {
-    const {createNeedle, downloadModel} = await import("cactus-needle/browser");
-    await downloadModel({model: "needle3"});
+    const {createNeedle} = await import("cactus-needle/browser");
     const session = await createNeedle();
     const needle = session as unknown as CactusNeedle;
     return {
@@ -36,8 +35,7 @@ export const cactusNeedle3Runtime: ModelRuntime<Needle3Model> = {
 
 export const cactusWhistleRuntime: ModelRuntime<WhistleModel> = {
   async load() {
-    const {createWhistle, downloadModel} = await import("cactus-needle/browser");
-    await downloadModel({model: "whistle"});
+    const {createWhistle} = await import("cactus-needle/browser");
     const session = await createWhistle();
     const whistle = session as unknown as CactusWhistle;
     return {

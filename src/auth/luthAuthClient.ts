@@ -96,7 +96,7 @@ export class LuthAuthClient {
     if (!this.origin) {
       throw new LuthAuthError(
         'APPLICATION_ORIGIN_UNAVAILABLE',
-        'Application deployment origin is unavailable. Set APP_URL or supply an explicit origin.',
+        'Application deployment origin is unavailable. Supply an explicit origin; Node callers can use resolveServerRuntimeAppUrl().',
       );
     }
     this.environment = config.environment || resolveClientEnvironment(this.origin);

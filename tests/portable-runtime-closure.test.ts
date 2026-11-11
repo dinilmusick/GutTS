@@ -1,4 +1,4 @@
-import {afterAll,describe,expect,it} from "vitest";
+import {describe,expect,it} from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import {builtinModules} from "node:module";
@@ -14,8 +14,6 @@ const forbiddenPackages=new Set([
   "node-gyp-build",
 ]);
 const failures:string[]=[];
-const visited=new Set<string>();
-const packageRoots=new Set<string>();
 
 function fileCandidates(target:string):string[]{
   return [target,`${target}.js`,`${target}.mjs`,`${target}.cjs`,`${target}.json`,path.join(target,"index.js"),path.join(target,"index.mjs")];
@@ -24,16 +22,6 @@ function resolveFile(target:string):string{
   const found=fileCandidates(target).find((candidate)=>fs.existsSync(candidate)&&fs.statSync(candidate).isFile());
   if(!found)throw new Error(`Cannot resolve emitted module: ${target}`);
   return fs.realpathSync(found);
-}
-function nearestPackage(from:string):string{
-  let current=path.dirname(from);
-  while(true){
-    const manifest=path.join(current,"package.json");
-    if(fs.existsSync(manifest))return current;
-    const parent=path.dirname(current);
-    if(parent===current)throw new Error(`No package scope found for ${from}`);
-    current=parent;
-  }
 }
 function conditionalTarget(value:any):string|null{
   if(typeof value==="string")return value;
@@ -77,7 +65,6 @@ function resolvePackage(from:string,specifier:string):string{
     current=parent;
   }
   if(!packageDir)throw new Error(`Cannot resolve package '${packageName}' imported by ${from}`);
-  packageRoots.add(packageDir);
   const manifest=JSON.parse(fs.readFileSync(path.join(packageDir,"package.json"),"utf8"));
   let target=exportTarget(manifest.exports,subpath);
   if(!target&&subpath==="."&&typeof manifest.browser==="string")target=manifest.browser;

@@ -24,9 +24,8 @@ describe('deployment origin resolution', () => {
     expect(resolveClientOrigin('https://explicit.example/path')).toBe('https://explicit.example');
   });
 
-  it('uses the browser origin when no explicit origin is supplied', () => {
-    vi.stubEnv('APP_URL', 'https://env.example');
-    vi.stubGlobal('window', { location: { origin: 'https://browser.example' } });
+  it('uses the Web location origin when no explicit origin is supplied', () => {
+    vi.stubGlobal('location', { origin: 'https://browser.example' });
     expect(resolveClientOrigin()).toBe('https://browser.example');
   });
 
@@ -127,27 +126,21 @@ describe('LuthAuthClient', () => {
 
   it('hydrates an OAuth callback token from the URL and removes it from browser history', () => {
     const store = tokenStore();
-    const originalLocation = globalThis.location;
-    const originalHistory = globalThis.history;
-    const originalDocument = globalThis.document;
     const replaceState = vi.fn();
-    Object.defineProperty(globalThis, 'location', {
-      configurable: true,
-      value: { href: 'http://localhost/?token=oauth-token&keep=1#workspace', origin: 'http://localhost', search: '?token=oauth-token&keep=1', pathname: '/', hash: '#workspace' },
+    vi.stubGlobal('location', {
+      href: 'http://localhost/?token=oauth-token&keep=1#workspace',
+      origin: 'http://localhost',
+      search: '?token=oauth-token&keep=1',
+      pathname: '/',
+      hash: '#workspace',
     });
-    Object.defineProperty(globalThis, 'history', { configurable: true, value: { replaceState } });
-    Object.defineProperty(globalThis, 'document', {
-      configurable: true,
-      value: { title: 'Loky' },
-    });
+    vi.stubGlobal('history', { replaceState });
+    vi.stubGlobal('document', { title: 'Loky' });
 
     expect(hydrateLuthTokenFromUrl(store)).toBe(true);
     expect(store.get()).toBe('oauth-token');
     expect(replaceState).toHaveBeenCalledWith({}, 'Loky', '/?keep=1#workspace');
 
-    Object.defineProperty(globalThis, 'location', { configurable: true, value: originalLocation });
-    Object.defineProperty(globalThis, 'history', { configurable: true, value: originalHistory });
-    Object.defineProperty(globalThis, 'document', { configurable: true, value: originalDocument });
   });
 
   it('clears the token only after a successful sign-out and verifies invalidation', async () => {

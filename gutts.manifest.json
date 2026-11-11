@@ -38,6 +38,9 @@
     "@dinilmusick/gutts/engineering",
     "@dinilmusick/gutts/auth",
     "@dinilmusick/gutts/storage",
-    "@dinilmusick/gutts/server"
+    "@dinilmusick/gutts/server",
+    "@dinilmusick/gutts/server/auth",
+    "@dinilmusick/gutts/server/models",
+    "@dinilmusick/gutts/server/storage"
   ]
 }

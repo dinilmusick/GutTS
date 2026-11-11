@@ -18,6 +18,23 @@ Model weights are not bundled into the GutTS npm package. A model runtime acquir
 
 GutTS does not contain a resolver, intelligence specification, or application-level routing system. Model metadata describes when a model is appropriate; selecting among models remains the responsibility of higher-level application logic.
 
+## Runtime entrypoints
+
+The default package entry and `./browser` are Web-standard entry graphs intended for browsers, Workers, and Fetch-based runtimes. They do not read Node process state or load Node-only adapters.
+
+Node-specific capabilities are explicit subpaths: `./server`, `./server/auth`, `./server/models`, and `./server/storage`. The existing `./storage` export remains as a compatibility alias.
+
+Model classes keep their public constructors and accept a runtime adapter. Browser and Worker consumers use the default browser runtime. Node consumers inject the server adapter:
+
+```ts
+import { Needle3 } from "@dinilmusick/gutts/models";
+import { nodeCactusNeedle3Runtime } from "@dinilmusick/gutts/server/models";
+
+const needle = new Needle3(nodeCactusNeedle3Runtime);
+```
+
+For server-side Luth configuration, resolve `APP_URL` through `resolveServerRuntimeAppUrl()` from `./server/auth` and pass the result as the client's explicit `origin`. The portable auth client itself reads the Web `location` API and never accesses `process.env`.
+
 ## Library policy
 
 GutTS is an aggregation layer, not a collection of reimplemented utility algorithms.

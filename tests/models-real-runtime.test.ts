@@ -9,6 +9,7 @@ import {
   EttinReranker68M,
   EttinReranker150M,
 } from "../src/models/index.js";
+import {nodeCactusNeedle3Runtime,nodeCactusWhistleRuntime} from "../src/server/models.js";
 
 describe("Real Model Runtime Verification", () => {
   it("SmolLM2 generates text and manages residency", async () => {
@@ -21,7 +22,7 @@ describe("Real Model Runtime Verification", () => {
   }, 60000);
 
   it("Needle3 completes structured task and produces embeddings", async () => {
-    const needle = new Needle3();
+    const needle = new Needle3(nodeCactusNeedle3Runtime);
     expect(needle.residency.isLoaded).toBe(false);
     const completion = await needle.complete({prompt: "lookup system metrics"});
     expect(completion).toBeDefined();
@@ -67,7 +68,7 @@ describe("Real Model Runtime Verification", () => {
   }, 60000);
 
   it("Whistle transcribes audio buffer without error", async () => {
-    const whistle = new Whistle();
+    const whistle = new Whistle(nodeCactusWhistleRuntime);
     expect(whistle.residency.isLoaded).toBe(false);
     const sampleRate = 16000;
     const numSamples = 16000;

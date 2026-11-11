@@ -2,6 +2,7 @@ import {describe,expect,it} from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import {builtinModules} from "node:module";
+import ts from "typescript";
 
 const root=process.cwd();
 const dist=path.join(root,"dist");
@@ -11,17 +12,28 @@ const forbiddenPackages=new Set([
   "@aws-sdk/credential-provider-node",
   "googleapis",
   "onnxruntime-node",
+  "sharp",
   "node-gyp-build",
 ]);
-const failures:string[]=[];
 
 function fileCandidates(target:string):string[]{
+  if(path.extname(target))return [target];
   return [target,`${target}.js`,`${target}.mjs`,`${target}.cjs`,`${target}.json`,path.join(target,"index.js"),path.join(target,"index.mjs")];
 }
 function resolveFile(target:string):string{
   const found=fileCandidates(target).find((candidate)=>fs.existsSync(candidate)&&fs.statSync(candidate).isFile());
   if(!found)throw new Error(`Cannot resolve emitted module: ${target}`);
   return fs.realpathSync(found);
+}
+function nearestPackage(from:string):string{
+  let current=path.dirname(from);
+  while(true){
+    const manifest=path.join(current,"package.json");
+    if(fs.existsSync(manifest))return current;
+    const parent=path.dirname(current);
+    if(parent===current)throw new Error(`No package scope found for ${from}`);
+    current=parent;
+  }
 }
 function conditionalTarget(value:any):string|null{
   if(typeof value==="string")return value;
@@ -35,21 +47,23 @@ function conditionalTarget(value:any):string|null{
   }
   return null;
 }
+function mapTarget(map:any,key:string):string|null{
+  if(!map||typeof map!=="object")return null;
+  if(Object.prototype.hasOwnProperty.call(map,key))return conditionalTarget(map[key]);
+  for(const [pattern,value] of Object.entries(map)){
+    if(!pattern.includes("*"))continue;
+    const [prefix,suffix]=pattern.split("*");
+    if(!key.startsWith(prefix!)||!key.endsWith(suffix!))continue;
+    const capture=key.slice(prefix!.length,key.length-suffix!.length);
+    return conditionalTarget(value)?.replace("*",capture)??null;
+  }
+  return null;
+}
 function exportTarget(exportsMap:any,subpath:string):string|null{
   if(typeof exportsMap==="string"||Array.isArray(exportsMap))return subpath==="."?conditionalTarget(exportsMap):null;
   if(!exportsMap||typeof exportsMap!=="object")return null;
   const hasSubpaths=Object.keys(exportsMap).some((key)=>key.startsWith("."));
-  if(!hasSubpaths)return subpath==="."?conditionalTarget(exportsMap):null;
-  if(Object.prototype.hasOwnProperty.call(exportsMap,subpath))return conditionalTarget(exportsMap[subpath]);
-  for(const [key,value] of Object.entries(exportsMap)){
-    if(!key.includes("*"))continue;
-    const [prefix,suffix]=key.split("*");
-    if(!subpath.startsWith(prefix!)||!subpath.endsWith(suffix!))continue;
-    const capture=subpath.slice(prefix!.length,subpath.length-suffix!.length);
-    const target=conditionalTarget(value);
-    return target?.replace("*",capture)??null;
-  }
-  return null;
+  return hasSubpaths?mapTarget(exportsMap,subpath):subpath==="."?conditionalTarget(exportsMap):null;
 }
 function resolvePackage(from:string,specifier:string):string{
   const parts=specifier.split("/");
@@ -75,59 +89,85 @@ function resolvePackage(from:string,specifier:string):string{
   if(target.startsWith("./"))target=target.slice(2);
   return resolveFile(path.join(packageDir,target));
 }
-function imports(source:string):string[]{
-  const found=new Set<string>();
-  const patterns=[
-    /\b(?:import|export)\s+(?:[\s\S]*?\s+from\s*)?["']([^"']+)["']/g,
-    /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
-  ];
-  for(const pattern of patterns)for(const match of source.matchAll(pattern)){if(match[1])found.add(match[1]);}
-  return [...found];
+function resolvePackageImport(from:string,specifier:string):string{
+  const packageDir=nearestPackage(from);
+  const manifest=JSON.parse(fs.readFileSync(path.join(packageDir,"package.json"),"utf8"));
+  const target=mapTarget(manifest.imports,specifier);
+  if(!target)throw new Error(`Package import '${specifier}' has no browser/import target in ${packageDir}`);
+  return resolveFile(path.resolve(packageDir,target));
 }
-function resolveImport(from:string,specifier:string):string|null{
-  if(specifier.startsWith("node:")||builtinNames.has(specifier)){
-    failures.push(`Node builtin reachable from portable export: ${specifier} <- ${from}`);
-    return null;
-  }
-  if(specifier.startsWith("./")||specifier.startsWith("../"))return resolveFile(path.resolve(path.dirname(from),specifier));
-  if(specifier.startsWith("/")||specifier.startsWith("data:")||specifier.startsWith("https:")||specifier.startsWith("http:"))return null;
-  const packageName=specifier.startsWith("@")?specifier.split("/").slice(0,2).join("/"):specifier.split("/")[0]!;
-  if(forbiddenPackages.has(packageName))failures.push(`Node/server-only package reachable from portable export: ${specifier} <- ${from}`);
-  return resolvePackage(from,specifier);
+function moduleSpecifiers(file:string,source:string):{specifier:string;kind:"static"|"dynamic"|"require"|"unknown-dynamic"}[]{
+  const parsed=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+  const found:{specifier:string;kind:"static"|"dynamic"|"require"|"unknown-dynamic"}[]=[];
+  const visit=(node:ts.Node):void=>{
+    if(ts.isImportDeclaration(node)||ts.isExportDeclaration(node)){
+      if(node.moduleSpecifier&&ts.isStringLiteral(node.moduleSpecifier))found.push({specifier:node.moduleSpecifier.text,kind:"static"});
+    }else if(ts.isCallExpression(node)&&node.expression.kind===ts.SyntaxKind.ImportKeyword){
+      const arg=node.arguments[0];
+      if(arg&&ts.isStringLiteral(arg))found.push({specifier:arg.text,kind:"dynamic"});
+      else found.push({specifier:"",kind:"unknown-dynamic"});
+    }else if(ts.isCallExpression(node)&&ts.isIdentifier(node.expression)&&node.expression.text==="require"){
+      const arg=node.arguments[0];
+      if(arg&&ts.isStringLiteral(arg))found.push({specifier:arg.text,kind:"require"});
+      else found.push({specifier:"",kind:"unknown-dynamic"});
+    }
+    ts.forEachChild(node,visit);
+  };
+  visit(parsed);
+  return found;
 }
-function collect(entry:string):Set<string>{
+function collect(entry:string):{closure:Set<string>;failures:string[]}{
   const closure=new Set<string>();
+  const failures:string[]=[];
   const queue=[resolveFile(entry)];
   while(queue.length){
     const current=queue.pop()!;
     if(closure.has(current))continue;
     closure.add(current);
     const source=fs.readFileSync(current,"utf8");
-    if(current.startsWith(dist+path.sep)&&/\b(?:process\s*\.|Buffer\s*(?:\.|\[)|__dirname\b|__filename\b|require\s*\()/.test(source)){
+    const isGuttsOutput=current.startsWith(dist+path.sep);
+    if(isGuttsOutput&&/\b(?:process\s*\.|Buffer\s*(?:\.|\[)|__dirname\b|__filename\b|require\s*\()/.test(source)){
       failures.push(`Node global reachable from portable GutTS export: ${path.relative(root,current)}`);
     }
-    if(current.startsWith(dist+path.sep)&&/\bimport\s*\(\s*(?!["'])/.test(source)){
-      failures.push(`Non-literal dynamic import cannot be proven portable: ${path.relative(root,current)}`);
-    }
-    for(const specifier of imports(source)){
-      const target=resolveImport(current,specifier);
-      if(target)queue.push(target);
+    for(const edge of moduleSpecifiers(current,source)){
+      if(edge.kind==="unknown-dynamic"){
+        if(isGuttsOutput)failures.push(`Non-literal dynamic import cannot be proven portable: ${path.relative(root,current)}`);
+        continue;
+      }
+      const specifier=edge.specifier;
+      if(specifier.startsWith("node:")||builtinNames.has(specifier)){
+        failures.push(`Node builtin reachable from portable export: ${specifier} <- ${current}`);
+        continue;
+      }
+      if(specifier.startsWith("./")||specifier.startsWith("../")){
+        queue.push(resolveFile(path.resolve(path.dirname(current),specifier)));
+        continue;
+      }
+      if(specifier.startsWith("#")){
+        queue.push(resolvePackageImport(current,specifier));
+        continue;
+      }
+      if(specifier.startsWith("/")||specifier.startsWith("data:")||specifier.startsWith("https:")||specifier.startsWith("http:"))continue;
+      const packageName=specifier.startsWith("@")?specifier.split("/").slice(0,2).join("/"):specifier.split("/")[0]!;
+      if(forbiddenPackages.has(packageName)||packageName.startsWith("@aws-sdk/")){
+        failures.push(`Node/server-only package reachable from portable export: ${specifier} <- ${current}`);
+      }
+      queue.push(resolvePackage(current,specifier));
     }
   }
-  return closure;
+  return {closure,failures};
 }
 
 describe("GutTS emitted Web-standard dependency closures",()=>{
   it("keeps the default root import closure free of Node-only modules and globals",()=>{
-    const closure=collect(path.join(dist,"index.js"));
-    expect(closure.size).toBeGreaterThan(1);
-    expect(failures).toEqual([]);
+    const result=collect(path.join(dist,"index.js"));
+    expect(result.closure.size).toBeGreaterThan(1);
+    expect(result.failures).toEqual([]);
   });
   it("keeps the browser entrypoint closure free of Node-only modules and globals",()=>{
-    const before=failures.length;
-    const closure=collect(path.join(dist,"browser.js"));
-    expect(closure.size).toBeGreaterThan(1);
-    expect(failures.slice(before)).toEqual([]);
+    const result=collect(path.join(dist,"browser.js"));
+    expect(result.closure.size).toBeGreaterThan(1);
+    expect(result.failures).toEqual([]);
   });
   it("publishes explicit server-only subpaths without folding them into portable roots",()=>{
     const pkg=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
@@ -136,8 +176,9 @@ describe("GutTS emitted Web-standard dependency closures",()=>{
     expect(pkg.exports["./server/models"]).toBe("./dist/server/models.js");
     expect(pkg.exports["./server/storage"]).toBe("./dist/server/storage/index.js");
     expect(pkg.exports["./storage"]).toBe("./dist/storage/index.js");
-    const rootClosure=collect(path.join(dist,"index.js"));
-    expect([...rootClosure].some((file)=>file.includes(`${path.sep}storage${path.sep}`))).toBe(false);
-    expect([...rootClosure].some((file)=>file.includes(`${path.sep}server${path.sep}`))).toBe(false);
+    const result=collect(path.join(dist,"index.js"));
+    expect(result.failures).toEqual([]);
+    expect([...result.closure].some((file)=>file.includes(`${path.sep}storage${path.sep}`))).toBe(false);
+    expect([...result.closure].some((file)=>file.includes(`${path.sep}server${path.sep}`))).toBe(false);
   });
 });

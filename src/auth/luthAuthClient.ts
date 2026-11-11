@@ -14,19 +14,12 @@ function normalizeOrigin(value: string): string {
 }
 
 export function resolveRuntimeAppUrl(): string {
-  const runtimeProcess = (globalThis as {
-    process?: { env?: Record<string, string | undefined> };
-  }).process;
-  return runtimeProcess?.env?.APP_URL?.trim() || '';
+  return globalThis.location?.origin?.trim() || '';
 }
 
 export function resolveClientOrigin(explicitOrigin?: string): string {
   const explicit = explicitOrigin?.trim();
   if (explicit) return normalizeOrigin(explicit);
-
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return normalizeOrigin(window.location.origin);
-  }
 
   return normalizeOrigin(resolveRuntimeAppUrl());
 }
@@ -46,22 +39,24 @@ export function resolveClientEnvironment(origin: string): DeploymentEnvironment 
 export const DEFAULT_LUTH_URL = 'https://luth.blueprint-ninjastudios.workers.dev';
 
 const browserTokenStore: LuthAuthTokenStore = {
-  get: () => { try { return sessionStorage.getItem('luth-session-token') || ''; } catch { return ''; } },
-  set: (token) => { try { sessionStorage.setItem('luth-session-token', token || ''); } catch {} },
-  clear: () => { try { sessionStorage.removeItem('luth-session-token'); } catch {} },
+  get: () => { try { return globalThis.sessionStorage?.getItem('luth-session-token') || ''; } catch { return ''; } },
+  set: (token) => { try { globalThis.sessionStorage?.setItem('luth-session-token', token || ''); } catch {} },
+  clear: () => { try { globalThis.sessionStorage?.removeItem('luth-session-token'); } catch {} },
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function hydrateLuthTokenFromUrl(tokenStore: LuthAuthTokenStore = browserTokenStore): boolean {
-  if (typeof window === 'undefined' || !window.location?.search) return false;
-  const href = window.location.href || `${window.location.origin || 'http://localhost'}${window.location.pathname || '/'}${window.location.search}${window.location.hash || ''}`;
+  const location = globalThis.location;
+  const history = globalThis.history;
+  if (!location?.search || !history?.replaceState) return false;
+  const href = location.href || `${location.origin || 'http://localhost'}${location.pathname || '/'}${location.search}${location.hash || ''}`;
   const url = new URL(href);
   const token = url.searchParams.get('token')?.trim();
   if (!token) return false;
   tokenStore.set(token);
   url.searchParams.delete('token');
-  window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : '') + url.hash);
+  history.replaceState({}, globalThis.document?.title ?? '', url.pathname + (url.search ? url.search : '') + url.hash);
   return true;
 }
 
@@ -101,7 +96,7 @@ export class LuthAuthClient {
     if (!this.origin) {
       throw new LuthAuthError(
         'APPLICATION_ORIGIN_UNAVAILABLE',
-        'Application deployment origin is unavailable. Set APP_URL or supply an explicit origin.',
+        'Application deployment origin is unavailable. Supply an explicit origin; Node callers can use resolveServerRuntimeAppUrl().',
       );
     }
     this.environment = config.environment || resolveClientEnvironment(this.origin);

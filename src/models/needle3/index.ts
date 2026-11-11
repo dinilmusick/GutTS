@@ -1,7 +1,7 @@
 import {defineApi} from "../../api/define-api.js";
 import {ModelLibrary} from "../model-library.js";
 import type {ModelRuntime} from "../model-types.js";
-import {cactusNeedle3Runtime} from "../runtimes/cactus.js";
+import {cactusNeedle3Runtime} from "../runtimes/cactus-browser.js";
 
 export type Needle3Model = {
   complete(input: {prompt: string; tools?: readonly unknown[]; schema?: unknown}): Promise<unknown>;

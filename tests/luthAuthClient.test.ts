@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LuthAuthClient, hydrateLuthTokenFromUrl, resolveClientOrigin, type LuthAuthTokenStore } from '../src/auth/luthAuthClient.js';
+import { resolveServerRuntimeAppUrl } from '../src/server/auth.js';
 
 function tokenStore(initial = ''): LuthAuthTokenStore {
   let token = initial;
@@ -17,25 +18,25 @@ afterEach(() => {
 });
 
 describe('deployment origin resolution', () => {
-  it('prefers an explicit origin over browser origin and APP_URL', () => {
+  it('prefers an explicit origin over the Web location origin', () => {
     vi.stubEnv('APP_URL', 'https://env.example/path');
-    vi.stubGlobal('window', { location: { origin: 'https://browser.example' } });
+    vi.stubGlobal('location', { origin: 'https://browser.example' });
     expect(resolveClientOrigin('https://explicit.example/path')).toBe('https://explicit.example');
   });
 
-  it('uses the browser origin when no explicit origin is supplied', () => {
-    vi.stubEnv('APP_URL', 'https://env.example');
-    vi.stubGlobal('window', { location: { origin: 'https://browser.example' } });
+  it('uses the Web location origin when no explicit origin is supplied', () => {
+    vi.stubGlobal('location', { origin: 'https://browser.example' });
     expect(resolveClientOrigin()).toBe('https://browser.example');
   });
 
-  it('uses APP_URL when no browser exists', () => {
+  it('keeps Node APP_URL resolution in the explicit server adapter', () => {
     vi.stubEnv('APP_URL', 'https://app.example/path');
-    expect(resolveClientOrigin()).toBe('https://app.example');
+    expect(resolveClientOrigin()).toBe('');
+    expect(resolveServerRuntimeAppUrl()).toBe('https://app.example/path');
   });
 
-  it('returns an empty origin when neither browser nor APP_URL exists', () => {
-    vi.stubEnv('APP_URL', '');
+  it('returns an empty origin when no Web location is available', () => {
+    vi.stubEnv('APP_URL', 'https://ignored.example');
     expect(resolveClientOrigin()).toBe('');
   });
 
@@ -48,7 +49,7 @@ describe('deployment origin resolution', () => {
     })).toThrow(/APPLICATION_ORIGIN_UNAVAILABLE/);
   });
 
-  it('sends the resolved non-browser APP_URL origin during registration', async () => {
+  it('accepts a server-resolved APP_URL as an explicit origin during registration', async () => {
     vi.stubEnv('APP_URL', 'https://client.example/path');
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
       registered: true,
@@ -61,6 +62,7 @@ describe('deployment origin resolution', () => {
     const client = new LuthAuthClient({
       ecosystemId: 'ultrst-armada',
       applicationId: 'test',
+      origin: resolveServerRuntimeAppUrl(),
     });
     await client.register();
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
@@ -124,27 +126,21 @@ describe('LuthAuthClient', () => {
 
   it('hydrates an OAuth callback token from the URL and removes it from browser history', () => {
     const store = tokenStore();
-    const originalWindow = globalThis.window;
-    const originalDocument = globalThis.document;
     const replaceState = vi.fn();
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      value: {
-        location: { href: 'http://localhost/?token=oauth-token&keep=1#workspace', origin: 'http://localhost', search: '?token=oauth-token&keep=1', pathname: '/', hash: '#workspace' },
-        history: { replaceState },
-      },
+    vi.stubGlobal('location', {
+      href: 'http://localhost/?token=oauth-token&keep=1#workspace',
+      origin: 'http://localhost',
+      search: '?token=oauth-token&keep=1',
+      pathname: '/',
+      hash: '#workspace',
     });
-    Object.defineProperty(globalThis, 'document', {
-      configurable: true,
-      value: { title: 'Loky' },
-    });
+    vi.stubGlobal('history', { replaceState });
+    vi.stubGlobal('document', { title: 'Loky' });
 
     expect(hydrateLuthTokenFromUrl(store)).toBe(true);
     expect(store.get()).toBe('oauth-token');
     expect(replaceState).toHaveBeenCalledWith({}, 'Loky', '/?keep=1#workspace');
 
-    Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
-    Object.defineProperty(globalThis, 'document', { configurable: true, value: originalDocument });
   });
 
   it('clears the token only after a successful sign-out and verifies invalidation', async () => {

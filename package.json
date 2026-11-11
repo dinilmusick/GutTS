@@ -26,7 +26,10 @@
       "default": "./dist/auth/index.js"
     },
     "./storage": "./dist/storage/index.js",
-    "./server": "./dist/server/index.js"
+    "./server": "./dist/server/index.js",
+    "./server/auth": "./dist/server/auth.js",
+    "./server/models": "./dist/server/models.js",
+    "./server/storage": "./dist/server/storage/index.js"
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json",
@@ -36,7 +39,8 @@
     "prepare": "pnpm run build",
     "boundary": "node scripts/architecture-boundary.mjs",
     "test:public-exports": "node scripts/test-public-exports.mjs",
-    "test:published": "node scripts/test-published-package.mjs"
+    "test:published": "node scripts/test-published-package.mjs",
+    "test:runtime-closures": "vitest run tests/portable-runtime-closure.test.ts"
   },
   "dependencies": {
     "lodash-es": "^4.17.21",

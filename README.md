@@ -4,9 +4,19 @@ Gut stands for Global Utilities. Gut is the aggregate library for the very basic
 
 ## Structure
 
-Each category is a directory with a stable facade. GutTS contains deterministic utilities and narrowly scoped model-backed libraries.
+Each category is a directory with a stable facade. GutTS contains both deterministic utilities and narrowly scoped model-backed libraries.
 
 Current categories: JSON, strings, arrays, objects, numbers, URLs, API definitions, and model libraries.
+
+## Model libraries
+
+Every model is a named library with its own metadata, semantic API definitions, and runtime lifecycle.
+
+Models include SmolLM2-135M-Instruct for general text generation, Needle 3 for tool selection and extraction, Whistle for speech-to-text, Ettin Reranker for candidate ranking, and MiniLM for semantic similarity.
+
+Model weights are not bundled into the GutTS npm package. A model runtime acquires them when an operation needs the model and may cache the artifact on disk. ModelResidency keeps the model in RAM only while operations are active, shares one loaded instance for concurrent calls in the same process, and unloads it when the final operation completes.
+
+GutTS does not contain a resolver, intelligence specification, or application-level routing system. Model metadata describes when a model is appropriate; selecting among models remains the responsibility of higher-level application logic.
 
 ## Runtime entrypoints
 
@@ -18,13 +28,18 @@ Current categories: JSON, strings, arrays, objects, numbers, URLs, API definitio
 - `@dinilmusick/gutts/storage/google-drive`: lazy Google Drive adapter (optional `googleapis` peer).
 - `@dinilmusick/gutts/server/models`: Node Cactus runtime adapters to inject into model classes.
 
-GutTS is ESM-only. CommonJS consumers should use dynamic `import()`; CommonJS compatibility is not claimed.
+The package is ESM-only. CommonJS consumers should use dynamic `import()`; CommonJS compatibility is not claimed.
 
-## Model libraries
+The default and browser entrypoints do not statically load Node-only adapters. Worker consumers should use `/worker`, not the model-bearing package root. Node consumers inject the server runtime adapter:
 
-Every model is a named library with its own metadata, semantic API definitions, and runtime lifecycle. Model weights are not bundled into the GutTS npm package. Model classes accept runtime adapters; Node consumers can inject the explicit adapters from `@dinilmusick/gutts/server/models`. Browser defaults load browser runtimes only when inference is requested.
+```ts
+import { Needle3 } from "@dinilmusick/gutts/models";
+import { nodeCactusNeedle3Runtime } from "@dinilmusick/gutts/server/models";
 
-GutTS does not contain a resolver, intelligence specification, or application-level routing system. Model metadata describes when a model is appropriate; selecting among models remains the responsibility of higher-level application logic.
+const needle = new Needle3(nodeCactusNeedle3Runtime);
+```
+
+For server-side Luth configuration, resolve `APP_URL` through `resolveServerRuntimeAppUrl()` from `./server/auth` and pass the result as the client's explicit `origin`. The portable auth client itself reads the Web `location` API and never accesses `process.env`.
 
 ## Storage adapters
 
@@ -45,3 +60,5 @@ GutTS is an aggregation layer, not a collection of reimplemented utility algorit
 - Keep category facades stable.
 - Keep shared types beside the category that owns them.
 - Add regression tests for every public utility family and model lifecycle guarantee.
+
+<!-- storage-provider-ci-validation -->

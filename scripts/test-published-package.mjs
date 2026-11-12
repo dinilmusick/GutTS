@@ -28,7 +28,12 @@ try {
     for (const target of targets) assert.ok(fs.existsSync(path.join(unpackedDir, target)), `Packed export target missing: ${key} -> ${target}`);
   }
   execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', tarball], { stdio: 'inherit' });
+  // Optional peers are installed only in this adapter-specific consumer fixture.
+  execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', '@aws-sdk/client-s3@^3.1164.0', 'googleapis@^189.0.0'], { stdio: 'inherit' });
   const specs = ['@dinilmusick/gutts','@dinilmusick/gutts/browser','@dinilmusick/gutts/worker','@dinilmusick/gutts/server','@dinilmusick/gutts/server/auth','@dinilmusick/gutts/server/models','@dinilmusick/gutts/server/storage','@dinilmusick/gutts/storage','@dinilmusick/gutts/storage/s3','@dinilmusick/gutts/storage/google-drive'];
+  const typeFixture = `import {chunk} from "@dinilmusick/gutts/worker";\nimport {LuthAuthClient} from "@dinilmusick/gutts/browser";\nimport {resolveServerRuntimeAppUrl} from "@dinilmusick/gutts/server/auth";\nconst groups = chunk([1,2,3,4],2); void LuthAuthClient; void resolveServerRuntimeAppUrl; void groups;\n`;
+  fs.writeFileSync(path.join(consumerDir, 'consumer.ts'), typeFixture);
+  execFileSync(path.join(root, 'node_modules/.bin/tsc'), ['--noEmit','--strict','--target','ES2022','--module','NodeNext','--moduleResolution','NodeNext','consumer.ts'], {cwd:consumerDir,stdio:'inherit'});
   for (const specifier of specs) {
     const code = `await import(${JSON.stringify(specifier)}); console.log("imported ${specifier}")`;
     execFileSync(process.execPath, ['--input-type=module','-e',code], {cwd:consumerDir,stdio:'inherit'});

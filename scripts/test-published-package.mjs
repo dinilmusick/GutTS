@@ -10,8 +10,8 @@ const packageName = sourceManifest.name;
 const version = sourceManifest.version;
 assert.ok(packageName && version, 'package name and version are required');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'gutts-packed-consumer-'));
-const packDir = path.join(temp, 'pack'), consumerDir = path.join(temp, 'consumer'), unpackedDir = path.join(temp, 'unpacked');
-fs.mkdirSync(packDir); fs.mkdirSync(consumerDir); fs.mkdirSync(unpackedDir);
+const packDir = path.join(temp, 'pack'), consumerDir = path.join(temp, 'consumer'), portableConsumerDir = path.join(temp, 'portable-consumer'), unpackedDir = path.join(temp, 'unpacked');
+fs.mkdirSync(packDir); fs.mkdirSync(consumerDir); fs.mkdirSync(portableConsumerDir); fs.mkdirSync(unpackedDir);
 try {
   execFileSync('npm', ['pack', '--ignore-scripts', '--pack-destination', packDir], { cwd: root, encoding: 'utf8' });
   const filename = fs.readdirSync(packDir).find(name => name.endsWith('.tgz'));
@@ -27,6 +27,17 @@ try {
     walk(value);
     for (const target of targets) assert.ok(fs.existsSync(path.join(unpackedDir, target)), `Packed export target missing: ${key} -> ${target}`);
   }
+  // First prove that portable entrypoints import with no optional provider peers installed.
+  execFileSync('npm', ['install', '--prefix', portableConsumerDir, '--ignore-scripts', '--no-audit', '--no-fund', tarball], { stdio: 'inherit' });
+  const portableSpecs = ['@dinilmusick/gutts','@dinilmusick/gutts/browser','@dinilmusick/gutts/worker','@dinilmusick/gutts/server','@dinilmusick/gutts/server/auth','@dinilmusick/gutts/server/models','@dinilmusick/gutts/storage/google-drive'];
+  for (const specifier of portableSpecs) {
+    execFileSync(process.execPath, ['--input-type=module','-e',`await import(${JSON.stringify(specifier)})`], {cwd:portableConsumerDir,stdio:'inherit'});
+  }
+  for (const specifier of ['@dinilmusick/gutts/storage/s3','@dinilmusick/gutts/storage']) {
+    const code = `try { await import(${JSON.stringify(specifier)}); process.exit(2); } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }`;
+    execFileSync(process.execPath, ['--input-type=module','-e',code], {cwd:portableConsumerDir,stdio:'inherit'});
+  }
+
   execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', tarball], { stdio: 'inherit' });
   // Optional peers are installed only in this adapter-specific consumer fixture.
   execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', '@aws-sdk/client-s3@^3.1164.0', 'googleapis@^189.0.0', '@types/node@^22'], { stdio: 'inherit' });
@@ -38,5 +49,5 @@ try {
     const code = `await import(${JSON.stringify(specifier)}); console.log("imported ${specifier}")`;
     execFileSync(process.execPath, ['--input-type=module','-e',code], {cwd:consumerDir,stdio:'inherit'});
   }
-  console.log(JSON.stringify({package:packageName,version,tarball:filename,packedConsumerImports:specs},null,2));
+  console.log(JSON.stringify({package:packageName,version,tarball:filename,portableConsumerImportsWithoutOptionalPeers:portableSpecs,providerConsumerImportsWithOptionalPeers:specs},null,2));
 } finally { fs.rmSync(temp,{recursive:true,force:true}); }

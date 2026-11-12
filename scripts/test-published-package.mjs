@@ -31,7 +31,7 @@ try {
   // Optional peers are installed only in this adapter-specific consumer fixture.
   execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', '@aws-sdk/client-s3@^3.1164.0', 'googleapis@^189.0.0'], { stdio: 'inherit' });
   const specs = ['@dinilmusick/gutts','@dinilmusick/gutts/browser','@dinilmusick/gutts/worker','@dinilmusick/gutts/server','@dinilmusick/gutts/server/auth','@dinilmusick/gutts/server/models','@dinilmusick/gutts/server/storage','@dinilmusick/gutts/storage','@dinilmusick/gutts/storage/s3','@dinilmusick/gutts/storage/google-drive'];
-  const typeFixture = `import {chunk} from "@dinilmusick/gutts/worker";\nimport {LuthAuthClient} from "@dinilmusick/gutts/browser";\nimport {resolveServerRuntimeAppUrl} from "@dinilmusick/gutts/server/auth";\nconst groups = chunk([1,2,3,4],2); void LuthAuthClient; void resolveServerRuntimeAppUrl; void groups;\n`;
+  const typeFixture = `import {chunk} from "@dinilmusick/gutts/worker";\nimport {LuthAuthClient} from "@dinilmusick/gutts/browser";\nimport {resolveServerRuntimeAppUrl} from "@dinilmusick/gutts/server/auth";\nimport {S3Client} from "@dinilmusick/gutts/storage/s3";\nimport type {GoogleApisModule} from "@dinilmusick/gutts/storage/google-drive";\nconst groups = chunk([1,2,3,4],2); void LuthAuthClient; void resolveServerRuntimeAppUrl; void S3Client; void groups;\ntype GoogleModule = GoogleApisModule;\n`;
   fs.writeFileSync(path.join(consumerDir, 'consumer.ts'), typeFixture);
   execFileSync(path.join(root, 'node_modules/.bin/tsc'), ['--noEmit','--strict','--target','ES2022','--module','NodeNext','--moduleResolution','NodeNext','consumer.ts'], {cwd:consumerDir,stdio:'inherit'});
   for (const specifier of specs) {

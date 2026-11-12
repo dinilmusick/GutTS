@@ -13,10 +13,10 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'gutts-packed-consumer-'));
 const packDir = path.join(temp, 'pack'), consumerDir = path.join(temp, 'consumer'), unpackedDir = path.join(temp, 'unpacked');
 fs.mkdirSync(packDir); fs.mkdirSync(consumerDir); fs.mkdirSync(unpackedDir);
 try {
-  const packedJson = execFileSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', packDir], { cwd: root, encoding: 'utf8' });
-  const packed = JSON.parse(packedJson);
-  assert.ok(packed[0]?.filename, 'npm pack must produce a local tarball');
-  const tarball = path.join(packDir, packed[0].filename);
+  execFileSync('npm', ['pack', '--ignore-scripts', '--pack-destination', packDir], { cwd: root, encoding: 'utf8' });
+  const filename = fs.readdirSync(packDir).find(name => name.endsWith('.tgz'));
+  assert.ok(filename, 'npm pack must produce a local tarball');
+  const tarball = path.join(packDir, filename);
   execFileSync('tar', ['-xzf', tarball, '-C', unpackedDir, '--strip-components=1']);
   const manifest = JSON.parse(fs.readFileSync(path.join(unpackedDir, 'package.json'), 'utf8'));
   assert.equal(manifest.name, packageName); assert.equal(manifest.version, version);
@@ -38,5 +38,5 @@ try {
     const code = `await import(${JSON.stringify(specifier)}); console.log("imported ${specifier}")`;
     execFileSync(process.execPath, ['--input-type=module','-e',code], {cwd:consumerDir,stdio:'inherit'});
   }
-  console.log(JSON.stringify({package:packageName,version,tarball:packed[0].filename,packedConsumerImports:specs},null,2));
+  console.log(JSON.stringify({package:packageName,version,tarball:filename,packedConsumerImports:specs},null,2));
 } finally { fs.rmSync(temp,{recursive:true,force:true}); }

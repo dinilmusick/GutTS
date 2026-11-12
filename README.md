@@ -4,36 +4,31 @@ Gut stands for Global Utilities. Gut is the aggregate library for the very basic
 
 ## Structure
 
-Each category is a directory with a stable facade. GutTS contains both deterministic utilities and narrowly scoped model-backed libraries.
+Each category is a directory with a stable facade. GutTS contains deterministic utilities and narrowly scoped model-backed libraries.
 
 Current categories: JSON, strings, arrays, objects, numbers, URLs, API definitions, and model libraries.
 
+## Runtime entrypoints
+
+- `@dinilmusick/gutts`: universal ESM utilities and API definitions.
+- `@dinilmusick/gutts/browser`: browser-facing utilities and Luth client.
+- `@dinilmusick/gutts/worker`: Worker-focused Web-standard utilities without model or provider adapters.
+- `@dinilmusick/gutts/server`: Node-specific auth/model adapters; storage is deliberately excluded.
+- `@dinilmusick/gutts/storage/s3`: AWS S3 adapter (optional `@aws-sdk/client-s3` peer).
+- `@dinilmusick/gutts/storage/google-drive`: lazy Google Drive adapter (optional `googleapis` peer).
+- `@dinilmusick/gutts/server/models`: Node Cactus runtime adapters to inject into model classes.
+
+GutTS is ESM-only. CommonJS consumers should use dynamic `import()`; CommonJS compatibility is not claimed.
+
 ## Model libraries
 
-Every model is a named library with its own metadata, semantic API definitions, and runtime lifecycle.
-
-Models include SmolLM2-135M-Instruct for general text generation, Needle 3 for tool selection and extraction, Whistle for speech-to-text, Ettin Reranker for candidate ranking, and MiniLM for semantic similarity.
-
-Model weights are not bundled into the GutTS npm package. A model runtime acquires them when an operation needs the model and may cache the artifact on disk. ModelResidency keeps the model in RAM only while operations are active, shares one loaded instance for concurrent calls in the same process, and unloads it when the final operation completes.
+Every model is a named library with its own metadata, semantic API definitions, and runtime lifecycle. Model weights are not bundled into the GutTS npm package. Model classes accept runtime adapters; Node consumers can inject the explicit adapters from `@dinilmusick/gutts/server/models`. Browser defaults load browser runtimes only when inference is requested.
 
 GutTS does not contain a resolver, intelligence specification, or application-level routing system. Model metadata describes when a model is appropriate; selecting among models remains the responsibility of higher-level application logic.
 
-## Runtime entrypoints
+## Storage adapters
 
-The default package entry and `./browser` are Web-standard entry graphs intended for browsers, Workers, and Fetch-based runtimes. They do not read Node process state or load Node-only adapters.
-
-Node-specific capabilities are explicit subpaths: `./server`, `./server/auth`, `./server/models`, and `./server/storage`. The existing `./storage` export remains as a compatibility alias.
-
-Model classes keep their public constructors and accept a runtime adapter. Browser and Worker consumers use the default browser runtime. Node consumers inject the server adapter:
-
-```ts
-import { Needle3 } from "@dinilmusick/gutts/models";
-import { nodeCactusNeedle3Runtime } from "@dinilmusick/gutts/server/models";
-
-const needle = new Needle3(nodeCactusNeedle3Runtime);
-```
-
-For server-side Luth configuration, resolve `APP_URL` through `resolveServerRuntimeAppUrl()` from `./server/auth` and pass the result as the client's explicit `origin`. The portable auth client itself reads the Web `location` API and never accesses `process.env`.
+Use the provider-specific entrypoint instead of importing the legacy aggregate storage surface. The Google Drive loader uses a dynamic import so merely importing universal GutTS code never loads `googleapis`. The S3 adapter is isolated to its own subpath and does not load Google APIs.
 
 ## Library policy
 
@@ -50,5 +45,3 @@ GutTS is an aggregation layer, not a collection of reimplemented utility algorit
 - Keep category facades stable.
 - Keep shared types beside the category that owns them.
 - Add regression tests for every public utility family and model lifecycle guarantee.
-
-<!-- storage-provider-ci-validation -->

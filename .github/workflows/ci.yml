@@ -36,6 +36,8 @@ jobs:
         run: pnpm run boundary
       - name: Packed tarball consumer tests
         run: pnpm run test:published
+      - name: Browser-target bundle test
+        run: npx --yes esbuild@0.25.0 tests/fixtures/gutts-browser.mjs --bundle --platform=browser --format=esm --outfile=/tmp/gutts-browser-smoke.js
       - name: Cloudflare Workers runtime smoke test
         run: pnpm run test:workers
       - name: Package archive inspection

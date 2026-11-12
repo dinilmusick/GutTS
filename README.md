@@ -12,7 +12,7 @@ Current categories: JSON, strings, arrays, objects, numbers, URLs, API definitio
 
 - `@dinilmusick/gutts`: universal ESM utilities and API definitions.
 - `@dinilmusick/gutts/browser`: browser-facing utilities and Luth client.
-- `@dinilmusick/gutts/worker`: Worker-focused Web-standard utilities without model or provider adapters.
+- `@dinilmusick/gutts/worker`: Worker-focused Web-standard utilities without model, API-registry, or provider adapters.
 - `@dinilmusick/gutts/server`: Node-specific auth/model adapters; storage is deliberately excluded.
 - `@dinilmusick/gutts/storage/s3`: AWS S3 adapter (optional `@aws-sdk/client-s3` peer).
 - `@dinilmusick/gutts/storage/google-drive`: lazy Google Drive adapter (optional `googleapis` peer).

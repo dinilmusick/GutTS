@@ -22,7 +22,8 @@
     "engineering",
     "auth",
     "server",
-    "storage"
+    "storage",
+    "worker"
   ],
   "exports": [
     "@dinilmusick/gutts/browser",
@@ -41,6 +42,9 @@
     "@dinilmusick/gutts/server",
     "@dinilmusick/gutts/server/auth",
     "@dinilmusick/gutts/server/models",
-    "@dinilmusick/gutts/server/storage"
+    "@dinilmusick/gutts/server/storage",
+    "@dinilmusick/gutts/worker",
+    "@dinilmusick/gutts/storage/s3",
+    "@dinilmusick/gutts/storage/google-drive"
   ]
 }

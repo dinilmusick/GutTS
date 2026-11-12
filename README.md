@@ -28,7 +28,7 @@ GutTS does not contain a resolver, intelligence specification, or application-le
 
 ## Storage adapters
 
-Use the provider-specific entrypoint instead of importing the legacy aggregate storage surface. The Google Drive loader uses a dynamic import so merely importing universal GutTS code never loads `googleapis`. The S3 adapter is isolated to its own subpath and does not load Google APIs.
+Use provider-specific entrypoints in new code. `storage/s3` loads only the AWS SDK; `storage/google-drive` loads Google APIs only when `loadGoogleApis()` or `createGoogleDriveClient()` is called. The legacy `storage` and `server/storage` aggregate entrypoints preserve the historical `S3Client`, `google`, and `drive_v3` exports and therefore load their provider modules when explicitly imported. Neither aggregate is re-exported by the universal root or `server` entrypoint.
 
 ## Library policy
 

@@ -8,7 +8,7 @@ A runtime is supported only when its emitted dependency graph and an actual runt
 | Browser | `@dinilmusick/gutts/browser` | Browser-facing utility surface, including the Luth client. Browser storage APIs are accessed only behind guarded operations. |
 | Cloudflare Workers / Fetch runtimes | `@dinilmusick/gutts/worker` | Worker-focused Web-standard utilities, API definitions, and engineering metadata. No model runtime, filesystem, process, or provider adapter exports. |
 | Node.js | `@dinilmusick/gutts/server` | Node adapter surface. Provider integrations are separate explicit subpaths. |
-| Node.js storage | `@dinilmusick/gutts/storage/s3`, `@dinilmusick/gutts/storage/google-drive` | Optional provider adapters loaded only when their respective subpath is imported or loader invoked. |
+| Node.js storage | `@dinilmusick/gutts/storage/s3`, `@dinilmusick/gutts/storage/google-drive` | Provider-specific subpaths isolate the optional SDKs. The legacy aggregate `./storage` remains for compatibility and loads both providers when explicitly imported. |
 | Node.js models | `@dinilmusick/gutts/server/models` | Explicit Node Cactus runtime adapters to inject into model classes. |
 
 ## Module format
@@ -19,7 +19,7 @@ GutTS is ESM-only. `type`, `main`, `module`, `types`, and `exports` point to the
 
 - Universal and Worker entrypoints must not statically import Node built-ins, process/filesystem implementations, browser-only APIs, or optional provider SDKs.
 - Importing `/server` must not import storage providers.
-- Importing `/storage/s3` must not load Google APIs; importing `/storage/google-drive` must not load the AWS SDK.
+- Importing `/storage/s3` must not load Google APIs; importing `/storage/google-drive` must not load the AWS SDK. The legacy `/storage` aggregate is an explicit compatibility exception and may load both.
 - Browser and Worker consumers must not import `/server` or storage adapters.
 - Model execution requires an explicit runtime choice. Browser model adapters are loaded only when a model operation is invoked; Node consumers inject adapters from `/server/models`.
 

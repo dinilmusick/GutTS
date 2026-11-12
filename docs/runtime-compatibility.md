@@ -6,7 +6,7 @@ A runtime is supported only when its emitted dependency graph and an actual runt
 |---|---|---|
 | Universal JavaScript | `@dinilmusick/gutts` | ESM utilities, API definitions, metadata, and Web-standard functionality. No Node built-ins or eager platform adapters. |
 | Browser | `@dinilmusick/gutts/browser` | Browser-facing utility surface, including the Luth client. Browser storage APIs are accessed only behind guarded operations. |
-| Cloudflare Workers / Fetch runtimes | `@dinilmusick/gutts/worker` | Worker-focused Web-standard utilities, API definitions, and engineering metadata. No model runtime, filesystem, process, or provider adapter exports. |
+| Cloudflare Workers / Fetch runtimes | `@dinilmusick/gutts/worker` | Worker-focused Web-standard utility and engineering metadata. No model runtime, filesystem, process, or provider adapter exports. |
 | Node.js | `@dinilmusick/gutts/server` | Node adapter surface. Provider integrations are separate explicit subpaths. |
 | Node.js storage | `@dinilmusick/gutts/storage/s3`, `@dinilmusick/gutts/storage/google-drive` | Provider-specific subpaths isolate the optional SDKs. The legacy aggregate `./storage` remains for compatibility and loads both providers when explicitly imported. |
 | Node.js models | `@dinilmusick/gutts/server/models` | Explicit Node Cactus runtime adapters to inject into model classes. |

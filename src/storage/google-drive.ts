@@ -1,14 +1,20 @@
 /**
  * Explicit Google Drive adapter. The optional googleapis package is loaded only
- * when this adapter is requested, never as a side effect of importing GutTS.
+ * when the adapter is invoked. Public declarations intentionally avoid leaking
+ * googleapis' Node-specific type dependencies into portable consumers.
  */
-export type GoogleApisModule = typeof import("googleapis");
+export interface GoogleApisModule {
+  google: {
+    drive(options: {version: "v3"; auth: unknown}): unknown;
+  };
+}
 
 export async function loadGoogleApis(): Promise<GoogleApisModule> {
-  return import("googleapis");
+  const module = await import("googleapis");
+  return module as unknown as GoogleApisModule;
 }
 
 export async function createGoogleDriveClient(options: {auth: unknown}): Promise<unknown> {
   const {google} = await loadGoogleApis();
-  return google.drive({version: "v3", auth: options.auth as never});
+  return google.drive({version: "v3", auth: options.auth});
 }

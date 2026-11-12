@@ -1,22 +1,28 @@
 # Runtime compatibility contract
 
-This document records the runtime contract established by the current public package surfaces. A surface is not considered supported merely because its TypeScript source compiles.
+A runtime is supported only when its emitted dependency graph and an actual runtime smoke test pass. TypeScript compilation alone is not evidence of runtime compatibility.
 
-| Environment | Surface | Status | Evidence / limitation |
-|---|---|---|---|
-| Browser | `@dinilmusick/gutts/browser` | Candidate; import smoke test required | Dedicated browser entry exists. Its transitive closure must remain free of Node built-ins and server-only providers. |
-| Node.js | `@dinilmusick/gutts`, `@dinilmusick/gutts/server` | Intended | The root and server surfaces are not interchangeable with the browser surface. |
-| Cloudflare Workers | No dedicated Worker export | Unsupported / unverified | Do not infer Worker support from Fetch-compatible APIs alone. |
-| Build-time tooling | package build and boundary scripts | Node.js tooling | Scripts may use Node filesystem and process APIs; they are not runtime package exports. |
-| TypeScript consumers | package export declarations | Declared; consumer verification required | Declarations must resolve for each public subpath independently. |
+| Environment | Entry point | Contract |
+|---|---|---|
+| Universal JavaScript | `@dinilmusick/gutts` | ESM utilities, API definitions, metadata, and Web-standard functionality. No Node built-ins or eager platform adapters. |
+| Browser | `@dinilmusick/gutts/browser` | Browser-facing utility surface, including the Luth client. Browser storage APIs are accessed only behind guarded operations. |
+| Cloudflare Workers / Fetch runtimes | `@dinilmusick/gutts/worker` | Worker-focused Web-standard utilities, API definitions, and engineering metadata. No model runtime, filesystem, process, or provider adapter exports. |
+| Node.js | `@dinilmusick/gutts/server` | Node adapter surface. Provider integrations are separate explicit subpaths. |
+| Node.js storage | `@dinilmusick/gutts/storage/s3`, `@dinilmusick/gutts/storage/google-drive` | Optional provider adapters loaded only when their respective subpath is imported or loader invoked. |
+| Node.js models | `@dinilmusick/gutts/server/models` | Explicit Node Cactus runtime adapters to inject into model classes. |
+
+## Module format
+
+GutTS is ESM-only. `type`, `main`, `module`, `types`, and `exports` point to the same emitted ESM package contract. CommonJS is not advertised and no synthetic CommonJS wrapper is shipped. Use dynamic `import()` from CommonJS applications.
 
 ## Boundary rules
 
-- Browser consumers must import `/browser`, not the package root or `/server`.
-- Node-only storage/provider implementations must not enter the browser dependency closure.
-- Optional providers must not be eagerly imported by unrelated public surfaces.
-- Worker compatibility remains unclaimed until a dedicated Worker-compatible dependency closure and a Workers-runtime execution test exist.
+- Universal and Worker entrypoints must not statically import Node built-ins, process/filesystem implementations, browser-only APIs, or optional provider SDKs.
+- Importing `/server` must not import storage providers.
+- Importing `/storage/s3` must not load Google APIs; importing `/storage/google-drive` must not load the AWS SDK.
+- Browser and Worker consumers must not import `/server` or storage adapters.
+- Model execution requires an explicit runtime choice. Browser model adapters are loaded only when a model operation is invoked; Node consumers inject adapters from `/server/models`.
 
 ## Verification gates
 
-For every claimed surface, CI must build the package, install its packed tarball into a clean consumer, import the exact subpath without browser globals unless that surface requires them, and compile a TypeScript consumer against its declarations. Browser claims additionally require a browser-compatible test environment; Worker claims require execution in a Workers-compatible runtime.
+CI builds the package, inspects emitted dependency closures, installs a packed tarball in clean consumers, resolves each public export, imports universal and Worker entries, and executes the Worker entry in Miniflare/Wrangler's local Workers runtime. Provider isolation tests ensure optional SDKs do not leak across adapter boundaries. Worker support is claimed only for the Worker entrypoint and only to the extent demonstrated by the runtime smoke test; this does not imply that every model backend or optional provider SDK runs in Workers.

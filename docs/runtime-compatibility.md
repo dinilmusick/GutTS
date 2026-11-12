@@ -8,6 +8,8 @@ A runtime is supported only when its emitted dependency graph and an actual runt
 | Browser | `@dinilmusick/gutts/browser` | Browser-facing utility surface, including the Luth client. Browser storage APIs are accessed only behind guarded operations. |
 | Cloudflare Workers / Fetch runtimes | `@dinilmusick/gutts/worker` | Worker-focused Web-standard utility and engineering metadata. No model runtime, filesystem, process, or provider adapter exports. |
 | Node.js | `@dinilmusick/gutts/server` | Node adapter surface. Provider integrations are separate explicit subpaths. |
+| Vercel Node.js Functions | `@dinilmusick/gutts`, `@dinilmusick/gutts/server` | Uses the Node.js ESM contract. Package consumer tests validate imports; deployment-specific Vercel integration is not run here. |
+| Google Cloud Run / Google AI Studio server deployments | `@dinilmusick/gutts`, `@dinilmusick/gutts/server` | Uses the Node.js ESM contract. Package consumer tests validate imports; an actual Cloud Run deployment is not part of this verification. |
 | Node.js storage | `@dinilmusick/gutts/storage/s3`, `@dinilmusick/gutts/storage/google-drive` | Provider-specific subpaths isolate the optional SDKs. The legacy aggregate `./storage` remains for compatibility and loads both providers when explicitly imported. |
 | Node.js models | `@dinilmusick/gutts/server/models` | Explicit Node Cactus runtime adapters to inject into model classes. |
 

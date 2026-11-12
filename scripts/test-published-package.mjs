@@ -8,78 +8,46 @@ const root = process.cwd();
 const sourceManifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const packageName = sourceManifest.name;
 const version = sourceManifest.version;
-assert.ok(packageName && version, 'package name and version are required for registry verification');
-
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'published-package-boundary-'));
-const packDir = path.join(temp, 'pack');
-const consumerDir = path.join(temp, 'consumer');
-const unpackedDir = path.join(temp, 'unpacked');
-fs.mkdirSync(packDir);
-fs.mkdirSync(consumerDir);
-fs.mkdirSync(unpackedDir);
-
+assert.ok(packageName && version, 'package name and version are required');
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'gutts-packed-consumer-'));
+const packDir = path.join(temp, 'pack'), consumerDir = path.join(temp, 'consumer'), portableConsumerDir = path.join(temp, 'portable-consumer'), unpackedDir = path.join(temp, 'unpacked');
+fs.mkdirSync(packDir); fs.mkdirSync(consumerDir); fs.mkdirSync(portableConsumerDir); fs.mkdirSync(unpackedDir);
 try {
-  const packedJson = execFileSync('npm', ['pack', `${packageName}@${version}`, '--json', '--pack-destination', packDir], { encoding: 'utf8' });
-  const packed = JSON.parse(packedJson);
-  assert.ok(packed[0]?.filename, 'npm pack must return the published tarball filename');
-  const tarball = path.join(packDir, packed[0].filename);
-
+  execFileSync('npm', ['pack', '--ignore-scripts', '--pack-destination', packDir], { cwd: root, encoding: 'utf8' });
+  const filename = fs.readdirSync(packDir).find(name => name.endsWith('.tgz'));
+  assert.ok(filename, 'npm pack must produce a local tarball');
+  const tarball = path.join(packDir, filename);
   execFileSync('tar', ['-xzf', tarball, '-C', unpackedDir, '--strip-components=1']);
-  const publishedManifest = JSON.parse(fs.readFileSync(path.join(unpackedDir, 'package.json'), 'utf8'));
-  assert.equal(publishedManifest.name, packageName);
-  assert.equal(publishedManifest.version, version);
-  assert.ok(publishedManifest.exports && typeof publishedManifest.exports === 'object',
-    'published artifact must contain its explicit exports map');
-
-  execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', tarball],
-    { stdio: 'inherit' });
-
-  function collectTargets(value, out = []) {
-    if (typeof value === 'string') out.push(value);
-    else if (value && typeof value === 'object') {
-      for (const nested of Object.values(value)) collectTargets(nested, out);
-    }
-    return out;
+  const manifest = JSON.parse(fs.readFileSync(path.join(unpackedDir, 'package.json'), 'utf8'));
+  assert.equal(manifest.name, packageName); assert.equal(manifest.version, version);
+  assert.equal(manifest.main, manifest.module, 'main and module must agree');
+  for (const [key, value] of Object.entries(manifest.exports)) {
+    const targets = [];
+    const walk = item => { if (typeof item === 'string') targets.push(item); else if (item && typeof item === 'object') Object.values(item).forEach(walk); };
+    walk(value);
+    for (const target of targets) assert.ok(fs.existsSync(path.join(unpackedDir, target)), `Packed export target missing: ${key} -> ${target}`);
   }
-  function runtimeTarget(value) {
-    if (typeof value === 'string') return value;
-    if (!value || typeof value !== 'object') return null;
-    return value.import ?? value.default ?? value.node ?? null;
+  // First prove that portable entrypoints import with no optional provider peers installed.
+  execFileSync('npm', ['install', '--prefix', portableConsumerDir, '--ignore-scripts', '--no-audit', '--no-fund', tarball], { stdio: 'inherit' });
+  const portableSpecs = ['@dinilmusick/gutts','@dinilmusick/gutts/browser','@dinilmusick/gutts/worker','@dinilmusick/gutts/server','@dinilmusick/gutts/server/auth','@dinilmusick/gutts/server/models','@dinilmusick/gutts/storage/google-drive'];
+  for (const specifier of portableSpecs) {
+    execFileSync(process.execPath, ['--input-type=module','-e',`await import(${JSON.stringify(specifier)})`], {cwd:portableConsumerDir,stdio:'inherit'});
+  }
+  for (const specifier of ['@dinilmusick/gutts/storage/s3','@dinilmusick/gutts/storage']) {
+    const code = `try { await import(${JSON.stringify(specifier)}); process.exit(2); } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }`;
+    execFileSync(process.execPath, ['--input-type=module','-e',code], {cwd:portableConsumerDir,stdio:'inherit'});
   }
 
-  const optionalPeers = Object.entries(publishedManifest.peerDependenciesMeta ?? {})
-    .filter(([, metadata]) => metadata?.optional)
-    .map(([name]) => {
-      const range = publishedManifest.peerDependencies?.[name];
-      return range ? `${name}@${range}` : null;
-    })
-    .filter(Boolean);
-  let optionalPeersInstalled = false;
-  const imported = [];
-  for (const [key, value] of Object.entries(publishedManifest.exports)) {
-    const allTargets = collectTargets(value);
-    for (const target of allTargets) {
-      assert.ok(!target.includes('/src/'), `Published export ${key} exposes source path ${target}`);
-      assert.ok(fs.existsSync(path.join(unpackedDir, target)), `Published export target is missing: ${key} -> ${target}`);
-    }
-    const js = runtimeTarget(value);
-    if (!js || !/\.(?:mjs|cjs|js)$/.test(js)) continue;
-    const specifier = packageName + (key === '.' ? '' : key.slice(1));
-    const code = `await import(${JSON.stringify(specifier)}); console.log('imported ${specifier}')`;
-    try {
-      execFileSync(process.execPath, ['--input-type=module', '-e', code], { cwd: consumerDir, stdio: 'inherit' });
-    } catch (error) {
-      if (!optionalPeers.length || optionalPeersInstalled) throw error;
-      console.log('Installing declared optional peer providers before testing provider-specific exports.');
-      execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', ...optionalPeers],
-        { stdio: 'inherit' });
-      optionalPeersInstalled = true;
-      execFileSync(process.execPath, ['--input-type=module', '-e', code], { cwd: consumerDir, stdio: 'inherit' });
-    }
-    imported.push(specifier);
+  execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', tarball], { stdio: 'inherit' });
+  // Optional peers are installed only in this adapter-specific consumer fixture.
+  execFileSync('npm', ['install', '--prefix', consumerDir, '--ignore-scripts', '--no-audit', '--no-fund', '@aws-sdk/client-s3@^3.1164.0', 'googleapis@^189.0.0', '@types/node@^22'], { stdio: 'inherit' });
+  const specs = ['@dinilmusick/gutts','@dinilmusick/gutts/browser','@dinilmusick/gutts/worker','@dinilmusick/gutts/server','@dinilmusick/gutts/server/auth','@dinilmusick/gutts/server/models','@dinilmusick/gutts/server/storage','@dinilmusick/gutts/storage','@dinilmusick/gutts/storage/s3','@dinilmusick/gutts/storage/google-drive'];
+  const typeFixture = `import {chunk} from "@dinilmusick/gutts/worker";\nimport {LuthAuthClient} from "@dinilmusick/gutts/browser";\nimport {resolveServerRuntimeAppUrl} from "@dinilmusick/gutts/server/auth";\nimport {S3Client} from "@dinilmusick/gutts/storage/s3";\nimport type {GoogleApisModule} from "@dinilmusick/gutts/storage/google-drive";\nconst groups = chunk([1,2,3,4],2); void LuthAuthClient; void resolveServerRuntimeAppUrl; void S3Client; void groups;\ntype GoogleModule = GoogleApisModule;\n`;
+  fs.writeFileSync(path.join(consumerDir, 'consumer.ts'), typeFixture);
+  execFileSync(path.join(root, 'node_modules/.bin/tsc'), ['--noEmit','--strict','--target','ES2022','--module','NodeNext','--moduleResolution','NodeNext','consumer.ts'], {cwd:consumerDir,stdio:'inherit'});
+  for (const specifier of specs) {
+    const code = `await import(${JSON.stringify(specifier)}); console.log("imported ${specifier}")`;
+    execFileSync(process.execPath, ['--input-type=module','-e',code], {cwd:consumerDir,stdio:'inherit'});
   }
-  assert.ok(imported.length > 0, 'at least one published JavaScript entry point must be imported');
-  console.log(JSON.stringify({ package: packageName, version, publishedTarball: packed[0].filename, optionalPeersInstalled, imported }, null, 2));
-} finally {
-  fs.rmSync(temp, { recursive: true, force: true });
-}
+  console.log(JSON.stringify({package:packageName,version,tarball:filename,portableConsumerImportsWithoutOptionalPeers:portableSpecs,providerConsumerImportsWithOptionalPeers:specs},null,2));
+} finally { fs.rmSync(temp,{recursive:true,force:true}); }

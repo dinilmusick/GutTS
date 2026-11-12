@@ -29,7 +29,22 @@
     "./server": "./dist/server/index.js",
     "./server/auth": "./dist/server/auth.js",
     "./server/models": "./dist/server/models.js",
-    "./server/storage": "./dist/server/storage/index.js"
+    "./server/storage": "./dist/server/storage/index.js",
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js",
+      "default": "./dist/worker.js"
+    },
+    "./storage/s3": {
+      "types": "./dist/storage/s3.d.ts",
+      "import": "./dist/storage/s3.js",
+      "default": "./dist/storage/s3.js"
+    },
+    "./storage/google-drive": {
+      "types": "./dist/storage/google-drive.d.ts",
+      "import": "./dist/storage/google-drive.js",
+      "default": "./dist/storage/google-drive.js"
+    }
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json",
@@ -40,7 +55,8 @@
     "boundary": "node scripts/architecture-boundary.mjs",
     "test:public-exports": "node scripts/test-public-exports.mjs",
     "test:published": "node scripts/test-published-package.mjs",
-    "test:runtime-closures": "vitest run tests/portable-runtime-closure.test.ts"
+    "test:runtime-closures": "vitest run tests/portable-runtime-closure.test.ts",
+    "test:workers": "node scripts/test-workers-runtime.mjs"
   },
   "dependencies": {
     "lodash-es": "^4.17.21",
@@ -91,5 +107,6 @@
     "type": "git",
     "url": "git+https://github.com/dinilmusick/GutTS.git"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "module": "./dist/index.js"
 }

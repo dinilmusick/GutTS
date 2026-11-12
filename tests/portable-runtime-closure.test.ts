@@ -158,6 +158,12 @@ function collect(entry:string):{closure:Set<string>;failures:string[]}{
   return {closure,failures};
 }
 
+function localClosure(entry:string):Set<string>{
+  const seen=new Set<string>(),queue=[resolveFile(entry)];
+  while(queue.length){const current=queue.pop()!;if(seen.has(current))continue;seen.add(current);for(const edge of moduleSpecifiers(current,fs.readFileSync(current,"utf8"))){if(edge.specifier.startsWith("./")||edge.specifier.startsWith("../"))queue.push(resolveFile(path.resolve(path.dirname(current),edge.specifier)));}}
+  return seen;
+}
+
 describe("GutTS emitted Web-standard dependency closures",()=>{
   it("keeps the default root import closure free of Node-only modules and globals",()=>{
     const result=collect(path.join(dist,"index.js"));
@@ -169,9 +175,30 @@ describe("GutTS emitted Web-standard dependency closures",()=>{
     expect(result.closure.size).toBeGreaterThan(1);
     expect(result.failures).toEqual([]);
   });
+  it("keeps the dedicated Worker entrypoint free of Node-only modules and optional providers",()=>{
+    const result=collect(path.join(dist,"worker.js"));
+    expect(result.closure.size).toBeGreaterThan(1);
+    expect(result.failures).toEqual([]);
+    expect([...result.closure].some((file)=>file.includes(`${path.sep}models${path.sep}`))).toBe(false);
+  });
+  it("keeps the server aggregate independent from storage providers in the emitted local graph",()=>{
+    const result=localClosure(path.join(dist,"server/index.js"));
+    expect([...result].some((file)=>file.includes(`${path.sep}storage${path.sep}`))).toBe(false);
+  });
+  it("keeps provider SDKs isolated to their explicit emitted adapter entrypoints",()=>{
+    const s3=fs.readFileSync(path.join(dist,"storage/s3.js"),"utf8");
+    const google=fs.readFileSync(path.join(dist,"storage/google-drive.js"),"utf8");
+    expect(s3).toContain("@aws-sdk/client-s3");
+    expect(s3).not.toContain("googleapis");
+    expect(google).toContain("googleapis");
+    expect(google).not.toContain("@aws-sdk/client-s3");
+  });
   it("publishes explicit server-only subpaths without folding them into portable roots",()=>{
     const pkg=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
     expect(pkg.exports["./server"]).toBe("./dist/server/index.js");
+    expect(pkg.exports["./worker"]).toBeDefined();
+    expect(pkg.exports["./storage/s3"]).toBeDefined();
+    expect(pkg.exports["./storage/google-drive"]).toBeDefined();
     expect(pkg.exports["./server/auth"]).toBe("./dist/server/auth.js");
     expect(pkg.exports["./server/models"]).toBe("./dist/server/models.js");
     expect(pkg.exports["./server/storage"]).toBe("./dist/server/storage/index.js");

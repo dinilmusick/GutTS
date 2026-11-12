@@ -20,4 +20,4 @@ try {
   drive_v3 = undefined;
 }
 
-export { google, drive_v3 };
+export {google, drive_v3};

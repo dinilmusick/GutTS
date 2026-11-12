@@ -62,6 +62,9 @@ describe("GutTS browser/server dependency boundary", () => {
     expect(manifest.exports["./browser"]).toBe("./dist/browser.js");
     expect(manifest.exports["./server"]).toBe("./dist/server/index.js");
     expect(manifest.exports["./storage"]).toBe("./dist/storage/index.js");
+    expect(manifest.exports["./worker"]).toBeDefined();
+    expect(manifest.exports["./storage/s3"]).toBeDefined();
+    expect(manifest.exports["./storage/google-drive"]).toBeDefined();
     expect(manifest.exports["." ]).toBe("./dist/index.js");
   });
 
@@ -107,7 +110,9 @@ describe("GutTS browser/server dependency boundary", () => {
     const browserSource = fs.readFileSync(path.join(root, "dist", "browser.js"), "utf8");
     const serverSource = fs.readFileSync(path.join(root, "dist", "server", "index.js"), "utf8");
     expect(browserSource).not.toContain("./storage/");
-    expect(serverSource).toContain("../storage/");
+    expect(serverSource).not.toContain("../storage/");
+    const serverStorageSource = fs.readFileSync(path.join(root, "dist", "server", "storage", "index.js"), "utf8");
+    expect(serverStorageSource).toContain("../../storage/");
     expect(fs.existsSync(path.join(root, "dist", "storage", "index.js"))).toBe(true);
   });
 });

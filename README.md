@@ -20,11 +20,17 @@ GutTS does not contain a resolver, intelligence specification, or application-le
 
 ## Runtime entrypoints
 
-The default package entry and `./browser` are Web-standard entry graphs intended for browsers, Workers, and Fetch-based runtimes. They do not read Node process state or load Node-only adapters.
+- `@dinilmusick/gutts`: universal ESM utilities and API definitions.
+- `@dinilmusick/gutts/browser`: browser-facing utilities and Luth client.
+- `@dinilmusick/gutts/worker`: Worker-focused Web-standard utilities without model, API-registry, or provider adapters.
+- `@dinilmusick/gutts/server`: Node-specific auth/model adapters; storage is deliberately excluded.
+- `@dinilmusick/gutts/storage/s3`: AWS S3 adapter (optional `@aws-sdk/client-s3` peer).
+- `@dinilmusick/gutts/storage/google-drive`: lazy Google Drive adapter (optional `googleapis` peer).
+- `@dinilmusick/gutts/server/models`: Node Cactus runtime adapters to inject into model classes.
 
-Node-specific capabilities are explicit subpaths: `./server`, `./server/auth`, `./server/models`, and `./server/storage`. The existing `./storage` export remains as a compatibility alias.
+The package is ESM-only. CommonJS consumers should use dynamic `import()`; CommonJS compatibility is not claimed.
 
-Model classes keep their public constructors and accept a runtime adapter. Browser and Worker consumers use the default browser runtime. Node consumers inject the server adapter:
+The default and browser entrypoints do not statically load Node-only adapters. Worker consumers should use `/worker`, not the model-bearing package root. Node consumers inject the server runtime adapter:
 
 ```ts
 import { Needle3 } from "@dinilmusick/gutts/models";
@@ -34,6 +40,10 @@ const needle = new Needle3(nodeCactusNeedle3Runtime);
 ```
 
 For server-side Luth configuration, resolve `APP_URL` through `resolveServerRuntimeAppUrl()` from `./server/auth` and pass the result as the client's explicit `origin`. The portable auth client itself reads the Web `location` API and never accesses `process.env`.
+
+## Storage adapters
+
+Use provider-specific entrypoints in new code. `storage/s3` loads only the AWS SDK; `storage/google-drive` loads Google APIs only when `loadGoogleApis()` or `createGoogleDriveClient()` is called. The legacy `storage` and `server/storage` aggregate entrypoints preserve the historical `S3Client`, `google`, and `drive_v3` exports and therefore load their provider modules when explicitly imported. Neither aggregate is re-exported by the universal root or `server` entrypoint.
 
 ## Library policy
 

@@ -164,6 +164,24 @@ function localClosure(entry:string):Set<string>{
   return seen;
 }
 
+function localExternalPackages(entry:string):Set<string>{
+  const seen=new Set<string>(),packages=new Set<string>(),queue=[resolveFile(entry)];
+  while(queue.length){
+    const current=queue.pop()!;
+    if(seen.has(current))continue;
+    seen.add(current);
+    for(const edge of moduleSpecifiers(current,fs.readFileSync(current,"utf8"))){
+      const specifier=edge.specifier;
+      if(specifier.startsWith("./")||specifier.startsWith("../")){
+        queue.push(resolveFile(path.resolve(path.dirname(current),specifier)));
+      }else if(!specifier.startsWith("node:")&&!builtinNames.has(specifier)&&!specifier.startsWith("#")&&!specifier.startsWith("/")&&!specifier.startsWith("data:")&&!specifier.startsWith("http:")&&!specifier.startsWith("https:")){
+        packages.add(specifier.startsWith("@")?specifier.split("/").slice(0,2).join("/"):specifier.split("/")[0]!);
+      }
+    }
+  }
+  return packages;
+}
+
 describe("GutTS emitted Web-standard dependency closures",()=>{
   it("keeps the default root import closure free of Node-only modules and globals",()=>{
     const result=collect(path.join(dist,"index.js"));
@@ -184,6 +202,12 @@ describe("GutTS emitted Web-standard dependency closures",()=>{
   it("keeps the server aggregate independent from storage providers in the emitted local graph",()=>{
     const result=localClosure(path.join(dist,"server/index.js"));
     expect([...result].some((file)=>file.includes(`${path.sep}storage${path.sep}`))).toBe(false);
+  });
+  it("keeps the complete local S3 entrypoint graph free of Google SDK imports",()=>{
+    const packages=localExternalPackages(path.join(dist,"storage/s3.js"));
+    expect(packages.has("@aws-sdk/client-s3")).toBe(true);
+    expect(packages.has("googleapis")).toBe(false);
+    expect([...packages].some((name)=>name.startsWith("@google/"))).toBe(false);
   });
   it("keeps provider SDKs isolated to their explicit emitted adapter entrypoints",()=>{
     const s3=fs.readFileSync(path.join(dist,"storage/s3.js"),"utf8");

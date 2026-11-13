@@ -43,7 +43,31 @@ For server-side Luth configuration, resolve `APP_URL` through `resolveServerRunt
 
 ## Storage adapters
 
-Use provider-specific entrypoints in new code. `storage/s3` loads only the AWS SDK; `storage/google-drive` loads Google APIs only when `loadGoogleApis()` or `createGoogleDriveClient()` is called. The legacy `storage` and `server/storage` aggregate entrypoints preserve the historical `S3Client`, `google`, and `drive_v3` exports and therefore load their provider modules when explicitly imported. Neither aggregate is re-exported by the universal root or `server` entrypoint.
+Use provider-specific entrypoints in new code. Each provider entrypoint is an independent public package boundary; consumers should install only the optional SDK peer required by the adapter they import.
+
+### AWS S3
+
+`@dinilmusick/gutts/storage/s3` resolves to the dedicated emitted `dist/storage/s3.js` entrypoint and its `dist/storage/s3.d.ts` declaration. It re-exports the S3 client and commands from the optional `@aws-sdk/client-s3` peer. It does not import the storage aggregate, Google Drive adapter, or `googleapis`.
+
+Install the adapter's peer in the consuming application:
+
+```sh
+npm install @dinilmusick/gutts @aws-sdk/client-s3
+```
+
+Import it directly:
+
+```ts
+import { S3Client, PutObjectCommand } from "@dinilmusick/gutts/storage/s3";
+```
+
+The S3-only consumer does not need `googleapis`. This is an import-graph guarantee: the S3 entrypoint and its local transitive modules must not reference Google SDK packages. The AWS SDK remains a legitimate provider dependency and may itself use Node-specific capabilities in Node deployments.
+
+### Google Drive and legacy aggregates
+
+`@dinilmusick/gutts/storage/google-drive` loads Google APIs only when `loadGoogleApis()` or `createGoogleDriveClient()` is called. Install `googleapis` when using that provider.
+
+The legacy `@dinilmusick/gutts/storage` and `@dinilmusick/gutts/server/storage` aggregate entrypoints preserve the historical `S3Client`, `google`, and `drive_v3` exports. Because the aggregate deliberately exposes both providers, importing it may load both provider modules and requires the corresponding optional peers. New consumers should prefer the provider-specific subpaths. Neither aggregate is re-exported by the universal root or `server` entrypoint.
 
 ## Library policy
 

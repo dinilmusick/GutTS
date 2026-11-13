@@ -60,7 +60,7 @@ try {
   for (const specifier of portableSpecs) run(portableConsumerDir, `await import(${JSON.stringify(specifier)})`);
 
   // S3 must import with its AWS peer installed and Google SDK deliberately absent.
-  install(s3ConsumerDir, tarball, '@aws-sdk/client-s3@^3.1164.0');
+  install(s3ConsumerDir, tarball, '@aws-sdk/client-s3@^3.1164.0', '@types/node@^22');
   run(s3ConsumerDir, `
     import assert from 'node:assert/strict';
     const s3 = await import('@dinilmusick/gutts/storage/s3');

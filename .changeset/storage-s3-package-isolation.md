@@ -1,5 +1,5 @@
 ---
-"@dinilmusick/gutts": patch
+"@dinilmusick/gutts": minor
 ---
 
-Publish the isolated S3 storage entrypoint as part of the public package artifact. The release includes the dedicated `./storage/s3` JavaScript and declaration files, allowing S3-only consumers to import the AWS-backed provider without loading the aggregate storage module or `googleapis`.
+Expose the provider-specific `./storage/s3` package entrypoint as a supported public import with its emitted JavaScript and declaration files. This additive API lets S3-only consumers load the AWS-backed provider without loading the aggregate storage module or `googleapis`.

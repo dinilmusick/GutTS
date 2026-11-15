@@ -64,15 +64,11 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.1164.0",
-    "googleapis": "^189.0.0",
     "@huggingface/transformers": "^4.3.2",
     "cactus-needle": "^0.3.0"
   },
   "peerDependenciesMeta": {
     "@aws-sdk/client-s3": {
-      "optional": true
-    },
-    "googleapis": {
       "optional": true
     },
     "@huggingface/transformers": {

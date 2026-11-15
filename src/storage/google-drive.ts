@@ -10,7 +10,8 @@ export interface GoogleApisModule {
 }
 
 export async function loadGoogleApis(): Promise<GoogleApisModule> {
-  const module = await import("googleapis");
+  const pkg = "googleapis";
+  const module = await import(/* @vite-ignore */ pkg);
   return module as unknown as GoogleApisModule;
 }
 

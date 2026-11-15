@@ -71,15 +71,15 @@ try {
     console.log('S3 subpath imported without googleapis');
   `);
 
-  // The historical aggregate remains available when both optional peers are supplied.
-  install(aggregateConsumerDir, tarball, '@aws-sdk/client-s3@^3.1164.0', 'googleapis@^189.0.0');
+  // The storage aggregate exports S3 commands cleanly without bundling googleapis.
+  install(aggregateConsumerDir, tarball, '@aws-sdk/client-s3@^3.1164.0');
   run(aggregateConsumerDir, `
     import assert from 'node:assert/strict';
     const storage = await import('@dinilmusick/gutts/storage');
     assert.equal(typeof storage.S3Client, 'function');
-    assert.ok('google' in storage);
-    assert.ok('drive_v3' in storage);
-    console.log('Legacy aggregate exports remain compatible');
+    assert.equal(typeof storage.PutObjectCommand, 'function');
+    assert.equal(storage.google, undefined);
+    console.log('Storage exports verified cleanly without googleapis');
   `);
 
   const typeFixture = `import { S3Client, PutObjectCommand } from "@dinilmusick/gutts/storage/s3";
@@ -95,7 +95,7 @@ void client; void command;
     version,
     tarball: filename,
     s3Consumer: 'AWS SDK installed; googleapis absent; import and declarations verified',
-    aggregateConsumer: 'S3Client, google and drive_v3 exports verified',
+    aggregateConsumer: 'S3Client and PutObjectCommand exports verified without googleapis',
     portableConsumerImportsWithoutOptionalPeers: portableSpecs,
   }, null, 2));
 } finally {

@@ -72,10 +72,9 @@ describe("GutTS browser/server dependency boundary", () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
     expect(manifest.dependencies).not.toHaveProperty("@aws-sdk/client-s3");
     expect(manifest.dependencies).not.toHaveProperty("googleapis");
+    expect(manifest.peerDependencies).not.toHaveProperty("googleapis");
     expect(manifest.peerDependencies?.["@aws-sdk/client-s3"]).toBeDefined();
-    expect(manifest.peerDependencies?.googleapis).toBeDefined();
     expect(manifest.peerDependenciesMeta?.["@aws-sdk/client-s3"]?.optional).toBe(true);
-    expect(manifest.peerDependenciesMeta?.googleapis?.optional).toBe(true);
     expect(manifest.pnpm?.overrides?.["onnxruntime-node"]).toBeUndefined();
   });
 

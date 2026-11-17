@@ -15,6 +15,11 @@
     "./objects": "./dist/objects/object-concepts.js",
     "./numbers": "./dist/numbers/number-concepts.js",
     "./urls": "./dist/urls/url-concepts.js",
+    "./urls/safety": {
+      "types": "./dist/urls/path-safety.d.ts",
+      "import": "./dist/urls/path-safety.js",
+      "default": "./dist/urls/path-safety.js"
+    },
     "./api": "./dist/api/index.js",
     "./models": "./dist/models/index.js",
     "./semantic-input": "./dist/semantic-input/index.js",
@@ -44,11 +49,6 @@
       "types": "./dist/storage/google-drive.d.ts",
       "import": "./dist/storage/google-drive.js",
       "default": "./dist/storage/google-drive.js"
-    },
-    "./urls/safety": {
-      "types": "./dist/urls/path-safety.d.ts",
-      "import": "./dist/urls/path-safety.js",
-      "default": "./dist/urls/path-safety.js"
     }
   },
   "scripts": {

@@ -14,7 +14,8 @@ describe('portable path safety', () => {
   it('rejects traversal, encoded separators, malformed escapes and controls', () => {
     const unsafe = [
       '/a/../b', '/a/./b', '/a/%2e%2e/b', '/a/%2E/b',
-      '/a/%252e%252e/b', '/a/%2f/b', '/a/%5c/b',
+      '/a/%252e%252e/b', '/a/%2525252e%2525252e/b',
+      '/a/%2f/b', '/a/%5c/b', '/a/%252f/b',
       '/a?b', '/a#b', '/a\\b', '/a/%xx', '/a/\u0000b',
     ];
     for (const path of unsafe) expect(() => normalizeStoragePath(path)).toThrow();

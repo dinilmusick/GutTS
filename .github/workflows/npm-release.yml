@@ -179,7 +179,7 @@ jobs:
             cache="$(mktemp -d)"
             if NPM_CONFIG_CACHE="$cache" npm pack "${PACKAGE_NAME}@${PACKAGE_VERSION}" --silent --pack-destination "$tmp" > "$tmp/pack.log" 2> "$tmp/pack.err"; then
               tgz="$(find "$tmp" -maxdepth 1 -name '*.tgz' -print -quit)"
-              if [ -n "$tgz" ] && tar -tzf "$tgz" | grep -qx 'package/dist/urls/path-safety.js'; then
+              if [ -n "$tgz" ] && tar -tzf "$tgz" | grep -Fx 'package/dist/urls/path-safety.js' >/dev/null; then
                 echo "Verified independently downloaded package ${PACKAGE_NAME}@${PACKAGE_VERSION}"
                 rm -rf "$cache"
                 exit 0

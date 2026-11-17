@@ -1,6 +1,6 @@
 {
   "name": "@dinilmusick/gutts",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "private": false,
   "description": "Global Utilities for TypeScript applications.",
   "type": "module",
@@ -44,6 +44,11 @@
       "types": "./dist/storage/google-drive.d.ts",
       "import": "./dist/storage/google-drive.js",
       "default": "./dist/storage/google-drive.js"
+    },
+    "./urls/safety": {
+      "types": "./dist/urls/path-safety.d.ts",
+      "import": "./dist/urls/path-safety.js",
+      "default": "./dist/urls/path-safety.js"
     }
   },
   "scripts": {

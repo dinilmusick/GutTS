@@ -36,7 +36,7 @@ export function resolveTrustedApiUrl(origin: string, path: string): URL {
       || /[\\#\x00-\x1f\x7f]/.test(path))
     throw new Error('Only trusted-origin relative API paths are permitted');
   // URL removes dot segments automatically: validate their raw encoded representation.
-  const pathname = path.split('?')[0];
+  const pathname = path.split('?')[0] ?? '';
   for (const part of pathname.split('/').filter(Boolean)) {
     let decoded = part;
     for (let depth = 0; depth < 3; depth++) {

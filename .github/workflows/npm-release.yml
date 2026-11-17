@@ -164,6 +164,35 @@ jobs:
         run: |
           set -euo pipefail
           npm publish --access public
+      - name: Independently verify npm tarball is downloadable
+        if: (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish))
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for attempt in 1 2 3 4 5 6 7 8; do
+            rm -f "$tmp"/*.tgz
+            cache="$(mktemp -d)"
+            if NPM_CONFIG_CACHE="$cache" npm pack "${PACKAGE_NAME}@${PACKAGE_VERSION}" --silent --pack-destination "$tmp" > "$tmp/pack.log" 2> "$tmp/pack.err"; then
+              tgz="$(find "$tmp" -maxdepth 1 -name '*.tgz' -print -quit)"
+              if [ -n "$tgz" ] && tar -tzf "$tgz" | grep -qx 'package/dist/urls/path-safety.js'; then
+                echo "Verified independently downloaded package ${PACKAGE_NAME}@${PACKAGE_VERSION}"
+                rm -rf "$cache"
+                exit 0
+              fi
+              echo 'Published tarball is missing the expected safety module' >&2
+            fi
+            rm -rf "$cache"
+            echo "Registry tarball not yet downloadable (attempt $attempt/8)" >&2
+            tail -n 3 "$tmp/pack.err" >&2 || true
+            sleep 12
+          done
+          echo 'FATAL: npm metadata/publication is not enough: tarball download failed' >&2
+          exit 1
       - name: Notify Skipo after successful upstream publication
         if: success() && steps.registry.outputs.exists == 'false' && (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'schedule' && steps.updates.outputs.changed == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish))
         env:

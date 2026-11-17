@@ -1,6 +1,6 @@
 {
   "name": "@dinilmusick/gutts",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "private": false,
   "description": "Global Utilities for TypeScript applications.",
   "type": "module",
@@ -15,6 +15,11 @@
     "./objects": "./dist/objects/object-concepts.js",
     "./numbers": "./dist/numbers/number-concepts.js",
     "./urls": "./dist/urls/url-concepts.js",
+    "./urls/safety": {
+      "types": "./dist/urls/path-safety.d.ts",
+      "import": "./dist/urls/path-safety.js",
+      "default": "./dist/urls/path-safety.js"
+    },
     "./api": "./dist/api/index.js",
     "./models": "./dist/models/index.js",
     "./semantic-input": "./dist/semantic-input/index.js",

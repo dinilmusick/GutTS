@@ -26,6 +26,8 @@ jobs:
         run: pnpm run build
       - name: Typecheck
         run: pnpm run typecheck
+      - name: Identity type isolation (positive and negative fixtures)
+        run: pnpm exec tsc --noEmit --strict --skipLibCheck --module nodenext --moduleResolution nodenext --target ES2022 tests/identityIds.types.ts
       - name: Unit tests
         run: pnpm run test
       - name: Public export resolution and import tests

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  advanceInvocationBudget, checkInvocationBudget, validateInvocationAgainstDescriptor, validateCapabilityDescriptor,
+  advanceInvocationBudget, checkInvocationBudget, consumeInvocationRetry, validateInvocationAgainstDescriptor, validateCapabilityDescriptor,
   validateOAuthClientRegistration, validateOAuthRedirectUri, validateScopedInvocation,
 } from '../src/auth/index.js';
 
@@ -30,7 +30,7 @@ const invocation = {
 describe('portable ULTRST identity and capability contracts', () => {
   it('rejects URLs and paths masquerading as canonical app identifiers', () => {
     const backend = { ...base, kind: 'backend', deploymentId: 'deployment-one' };
-    for (const invalid of ['https://app.example/oauth', 'app/another', 'app?x=1', 'app#fragment']) {
+    for (const invalid of ['https://app.example/oauth', 'https:example', 'mailto:app', 'app/another', 'app?x=1', 'app#fragment']) {
       expect(validateOAuthClientRegistration({ ...oauth, appId: invalid }).ok).toBe(false);
       expect(validateCapabilityDescriptor({ ...backend, appId: invalid }).ok).toBe(false);
       expect(validateScopedInvocation({ ...invocation, targetAppId: invalid, audienceAppId: invalid }).ok).toBe(false);
@@ -113,6 +113,15 @@ describe('portable ULTRST identity and capability contracts', () => {
     expect(validateInvocationAgainstDescriptor(invocation, targetWorkflow, 1000).ok).toBe(true);
     expect(validateInvocationAgainstDescriptor(invocation, { ...targetWorkflow, revision: 'v4' }, 1000)).toEqual({ ok: false, reason: 'TARGET_CAPABILITY_REVISION_OR_KIND_MISMATCH' });
     expect(validateInvocationAgainstDescriptor(invocation, { ...targetWorkflow, sourceWorkspaceId: 'foreign-ws' }, 1000)).toEqual({ ok: false, reason: 'WORKFLOW_WORKSPACE_MISMATCH' });
+    expect(consumeInvocationRetry(invocation, 1000)).toEqual({
+      ok: true, value: {
+        activeAppChain: ['app-A'], remainingCalls: 8,
+        remainingRetries: 1, deadlineAtMs: 2000,
+      },
+    });
+    expect(consumeInvocationRetry({ ...invocation, remainingRetries: 0 }, 1000)).toEqual({
+      ok: false, reason: 'INVOCATION_RETRY_BUDGET_EXHAUSTED',
+    });
     expect(advanceInvocationBudget(invocation, 1000)).toEqual({
       ok: true, value: {
         activeAppChain: ['app-A', 'app-B'], remainingCalls: 7,

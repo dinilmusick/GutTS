@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  advanceInvocationBudget, checkInvocationBudget, validateCapabilityDescriptor,
+  advanceInvocationBudget, checkInvocationBudget, validateInvocationAgainstDescriptor, validateCapabilityDescriptor,
   validateOAuthClientRegistration, validateOAuthRedirectUri, validateScopedInvocation,
 } from '../src/auth/index.js';
 
@@ -22,7 +22,7 @@ const invocation = {
   schemaVersion: 1, callerAppId: 'app-A', targetAppId: 'app-B',
   audienceAppId: 'app-B', principalUserId: 'user-1',
   callerWorkspaceId: 'ws-1', targetWorkspaceId: 'ws-2',
-  operationId: 'workflow.execute', expectedRevision: 'v3',
+  operationId: 'workflow.execute', expectedRevision: 'v3', operationKind: 'workflow',
   grantId: 'grant-1', traceId: 'trace-1', activeAppChain: ['app-A'],
   deadlineAtMs: 2000, maxDepth: 4, remainingCalls: 8, remainingRetries: 2,
 };
@@ -42,6 +42,9 @@ describe('portable ULTRST identity and capability contracts', () => {
     const mobile = { ...oauth, platform: 'android', redirectUris: ['https://mobile.example.com/oauth/cb'] };
     expect(validateOAuthClientRegistration(mobile).ok).toBe(false);
     expect(validateOAuthClientRegistration({ ...mobile, verifiedHosts: ['mobile.example.com'] }).ok).toBe(true);
+    expect(validateOAuthClientRegistration({ ...mobile, platform: 'ios', verifiedHosts: ['mobile.example.com'] }).ok).toBe(true);
+    expect(validateOAuthClientRegistration({ ...mobile, platform: 'ios', verifiedHosts: ['mobile.example.com'], redirectUris: ['https://mobile.example.com/other#bad'] }).ok).toBe(false);
+    expect(validateOAuthClientRegistration({ ...oauth, platform: 'desktop', redirectUris: ['http://127.0.0.1:51675/callback'] }).ok).toBe(true);
     expect(validateOAuthClientRegistration({ ...mobile, verifiedHosts: ['another.example.com'] }).ok).toBe(false);
     expect(validateOAuthRedirectUri('http://127.0.0.1:51675/callback', 'desktop').ok).toBe(true);
     expect(validateOAuthRedirectUri('http://[::1]:51675/callback', 'desktop').ok).toBe(true);
@@ -63,6 +66,9 @@ describe('portable ULTRST identity and capability contracts', () => {
     expect(validateCapabilityDescriptor({ ...base, kind: 'backend', deploymentId: 'deploy-1' }).ok).toBe(true);
     expect(validateCapabilityDescriptor({ ...base, kind: 'frontend', deploymentId: 'deploy-1', sessionPermission: 'inspect' }).ok).toBe(true);
     expect(validateCapabilityDescriptor({ ...base, kind: 'frontend', deploymentId: 'deploy-1' }).ok).toBe(false);
+    expect(validateScopedInvocation({ ...invocation, operationKind: 'frontend' }).ok).toBe(false);
+    expect(validateScopedInvocation({ ...invocation, operationKind: 'frontend', frontendSessionId: 'live-1', frontendPermission: 'act' }).ok).toBe(false);
+    expect(validateScopedInvocation({ ...invocation, operationKind: 'frontend', frontendSessionId: 'live-1', frontendPermission: 'act', frontendConsentId: 'consent-1' }).ok).toBe(true);
   });
 
   it('requires target audience and bounds cycles, depth, deadlines and total work', () => {
@@ -75,6 +81,24 @@ describe('portable ULTRST identity and capability contracts', () => {
     expect(checkInvocationBudget({ ...invocation, targetAppId: 'app-A', audienceAppId: 'app-A' }, 1000)).toEqual({ ok: false, reason: 'INVOCATION_CYCLE' });
     expect(checkInvocationBudget({ ...invocation, maxDepth: 1 }, 1000)).toEqual({ ok: false, reason: 'INVOCATION_MAX_DEPTH' });
     expect(checkInvocationBudget({ ...invocation, remainingCalls: 0 }, 1000)).toEqual({ ok: false, reason: 'INVOCATION_WORK_BUDGET_EXHAUSTED' });
+    const first = advanceInvocationBudget(invocation, 1000);
+    expect(first.ok).toBe(true);
+    if (first.ok) {
+      const second = advanceInvocationBudget({
+        ...invocation, callerAppId: 'app-B', targetAppId: 'app-C', audienceAppId: 'app-C',
+        activeAppChain: first.value.activeAppChain, remainingCalls: first.value.remainingCalls,
+      }, 1100);
+      expect(second.ok).toBe(true);
+      if (second.ok) expect(second.value.activeAppChain).toEqual(['app-A', 'app-B', 'app-C']);
+      expect(advanceInvocationBudget({
+        ...invocation, callerAppId: 'app-B', targetAppId: 'app-A', audienceAppId: 'app-A',
+        activeAppChain: first.value.activeAppChain, remainingCalls: first.value.remainingCalls,
+      }, 1100)).toEqual({ ok: false, reason: 'INVOCATION_CYCLE' });
+    }
+    const targetWorkflow = { ...base, kind: 'workflow', workflowId: 'wf-1', ownerUserId: 'u-1', sourceWorkspaceId: 'ws-2', published: true };
+    expect(validateInvocationAgainstDescriptor(invocation, targetWorkflow, 1000).ok).toBe(true);
+    expect(validateInvocationAgainstDescriptor(invocation, { ...targetWorkflow, revision: 'v4' }, 1000)).toEqual({ ok: false, reason: 'TARGET_CAPABILITY_REVISION_OR_KIND_MISMATCH' });
+    expect(validateInvocationAgainstDescriptor(invocation, { ...targetWorkflow, sourceWorkspaceId: 'foreign-ws' }, 1000)).toEqual({ ok: false, reason: 'WORKFLOW_WORKSPACE_MISMATCH' });
     expect(advanceInvocationBudget(invocation, 1000)).toEqual({
       ok: true, value: {
         activeAppChain: ['app-A', 'app-B'], remainingCalls: 7,

@@ -28,6 +28,20 @@ const invocation = {
 };
 
 describe('portable ULTRST identity and capability contracts', () => {
+  it('rejects URLs and paths masquerading as canonical app identifiers', () => {
+    const backend = { ...base, kind: 'backend', deploymentId: 'deployment-one' };
+    for (const invalid of ['https://app.example/oauth', 'app/another', 'app?x=1', 'app#fragment']) {
+      expect(validateOAuthClientRegistration({ ...oauth, appId: invalid }).ok).toBe(false);
+      expect(validateCapabilityDescriptor({ ...backend, appId: invalid }).ok).toBe(false);
+      expect(validateScopedInvocation({ ...invocation, targetAppId: invalid, audienceAppId: invalid }).ok).toBe(false);
+      expect(validateScopedInvocation({ ...invocation, callerAppId: invalid, activeAppChain: [invalid] }).ok).toBe(false);
+    }
+    expect(validateOAuthClientRegistration(oauth).ok).toBe(true);
+    expect(validateCapabilityDescriptor(backend).ok).toBe(true);
+    expect(validateScopedInvocation(invocation).ok).toBe(true);
+  });
+
+
   it('accepts only explicit public S256 clients with exact registered HTTPS callbacks', () => {
     expect(validateOAuthClientRegistration(oauth).ok).toBe(true);
     expect(validateOAuthClientRegistration({ ...oauth, pkceMethod: 'plain' }).ok).toBe(false);

@@ -95,7 +95,7 @@ describe('portable ULTRST identity and capability contracts', () => {
         activeAppChain: first.value.activeAppChain, remainingCalls: first.value.remainingCalls,
       }, 1100)).toEqual({ ok: false, reason: 'INVOCATION_CYCLE' });
     }
-    const targetWorkflow = { ...base, kind: 'workflow', workflowId: 'wf-1', ownerUserId: 'u-1', sourceWorkspaceId: 'ws-2', published: true };
+    const targetWorkflow = { ...base, appId: 'app-B', kind: 'workflow', workflowId: 'wf-1', ownerUserId: 'u-1', sourceWorkspaceId: 'ws-2', published: true };
     expect(validateInvocationAgainstDescriptor(invocation, targetWorkflow, 1000).ok).toBe(true);
     expect(validateInvocationAgainstDescriptor(invocation, { ...targetWorkflow, revision: 'v4' }, 1000)).toEqual({ ok: false, reason: 'TARGET_CAPABILITY_REVISION_OR_KIND_MISMATCH' });
     expect(validateInvocationAgainstDescriptor(invocation, { ...targetWorkflow, sourceWorkspaceId: 'foreign-ws' }, 1000)).toEqual({ ok: false, reason: 'WORKFLOW_WORKSPACE_MISMATCH' });

@@ -42,6 +42,8 @@ export function contractId(value: unknown): value is string {
 
 /** Canonical app IDs are stable slugs/UUIDs, never deployment URLs or paths. */
 export function contractAppId(value: unknown): value is string {
+  // Application IDs are registry slugs/UUIDs, never URI schemes or origins.
+  if (typeof value !== 'string' || /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)) return false;
   return parseIdentityId('application', value) !== null;
 }
 

@@ -3,3 +3,5 @@ export * from './luthAuthClient.js';
 export * from './oauthClientContract.js';
 export * from './capabilityContract.js';
 export * from './invocationContract.js';
+
+export * from './identityIds.js';

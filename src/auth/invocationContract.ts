@@ -1,3 +1,4 @@
+import { type CapabilityDescriptorV1, validateCapabilityDescriptor } from './capabilityContract.js';
 import {
   contractExactKeys, contractId, contractRecord, type ContractCheck,
   ULTRST_APP_CONTRACT_VERSION,
@@ -19,6 +20,11 @@ export interface ScopedInvocationV1 {
   targetWorkspaceId: string;
   operationId: string;
   expectedRevision: string;
+  operationKind: 'backend' | 'frontend' | 'workflow';
+  /** Required for frontend, obtained from live window broker; not proof of consent. */
+  frontendSessionId?: string;
+  frontendPermission?: 'inspect' | 'act';
+  frontendConsentId?: string;
   grantId: string;
   traceId: string;
   /** Trusted server-to-server ancestry, INCLUDING the caller app. */
@@ -32,6 +38,7 @@ export interface ScopedInvocationV1 {
 const invocationKeys = [
   'schemaVersion', 'callerAppId', 'targetAppId', 'audienceAppId', 'principalUserId',
   'callerWorkspaceId', 'targetWorkspaceId', 'operationId', 'expectedRevision',
+  'operationKind', 'frontendSessionId', 'frontendPermission', 'frontendConsentId',
   'grantId', 'traceId', 'activeAppChain', 'deadlineAtMs', 'maxDepth',
   'remainingCalls', 'remainingRetries',
 ] as const;
@@ -44,8 +51,18 @@ export function validateScopedInvocation(input: unknown): ContractCheck<ScopedIn
     || !contractId(o.callerWorkspaceId) || !contractId(o.targetWorkspaceId)
     || !contractId(o.operationId) || !contractId(o.expectedRevision)
     || !contractId(o.grantId) || !contractId(o.traceId)
+    || !['backend', 'frontend', 'workflow'].includes(String(o.operationKind))
     || o.audienceAppId !== o.targetAppId) {
     return { ok: false, reason: 'INVALID_INVOCATION_IDENTITY_OR_AUDIENCE' };
+  }
+  if (o.operationKind === 'frontend') {
+    if (!contractId(o.frontendSessionId) || !contractId(o.frontendConsentId)
+      || !['inspect', 'act'].includes(String(o.frontendPermission))) {
+      return { ok: false, reason: 'FRONTEND_REQUIRES_LIVE_SESSION_AND_CONSENT' };
+    }
+  } else if (o.frontendSessionId !== undefined || o.frontendPermission !== undefined
+    || o.frontendConsentId !== undefined) {
+    return { ok: false, reason: 'NON_FRONTEND_SESSION_NOT_ALLOWED' };
   }
   if (!Array.isArray(o.activeAppChain) || !o.activeAppChain.every(contractId)
     || o.activeAppChain.length === 0 || o.activeAppChain.length > 16
@@ -104,4 +121,35 @@ export function advanceInvocationBudget(
       deadlineAtMs: value.deadlineAtMs,
     },
   };
+}
+
+/**
+ * Confirms the selected capability's target, revision and kind have not
+ * changed before dispatch. The target must STILL independently reauthorize
+ * user/workspace/grant and (for frontend) live-window/session/consent.
+ */
+export function validateInvocationAgainstDescriptor(
+  invocationInput: unknown,
+  descriptorInput: unknown,
+  nowMs: number,
+): ContractCheck<{ invocation: ScopedInvocationV1; descriptor: CapabilityDescriptorV1 }> {
+  const invocation = checkInvocationBudget(invocationInput, nowMs);
+  if (!invocation.ok) return invocation;
+  const descriptor = validateCapabilityDescriptor(descriptorInput);
+  if (!descriptor.ok) return descriptor;
+  if (descriptor.value.appId !== invocation.value.targetAppId
+    || descriptor.value.operationId !== invocation.value.operationId
+    || descriptor.value.revision !== invocation.value.expectedRevision
+    || descriptor.value.kind !== invocation.value.operationKind) {
+    return { ok: false, reason: 'TARGET_CAPABILITY_REVISION_OR_KIND_MISMATCH' };
+  }
+  if (descriptor.value.kind === 'workflow'
+    && descriptor.value.sourceWorkspaceId !== invocation.value.targetWorkspaceId) {
+    return { ok: false, reason: 'WORKFLOW_WORKSPACE_MISMATCH' };
+  }
+  if (descriptor.value.kind === 'frontend'
+    && descriptor.value.sessionPermission !== invocation.value.frontendPermission) {
+    return { ok: false, reason: 'FRONTEND_PERMISSION_MISMATCH' };
+  }
+  return { ok: true, value: { invocation: invocation.value, descriptor: descriptor.value } };
 }

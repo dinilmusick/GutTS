@@ -124,6 +124,31 @@ export function advanceInvocationBudget(
 }
 
 /**
+ * Admit one retry of the same target operation. Unlike a successful hop, a
+ * retry consumes only retry budget; the trusted executor must persist this
+ * returned budget atomically before dispatching the retry.
+ */
+export function consumeInvocationRetry(
+  input: unknown, nowMs: number,
+): ContractCheck<Pick<ScopedInvocationV1, 'activeAppChain' | 'remainingCalls' | 'remainingRetries' | 'deadlineAtMs'>> {
+  const check = checkInvocationBudget(input, nowMs);
+  if (!check.ok) return check;
+  const value = check.value;
+  if (value.remainingRetries === 0) {
+    return { ok: false, reason: 'INVOCATION_RETRY_BUDGET_EXHAUSTED' };
+  }
+  return {
+    ok: true,
+    value: {
+      activeAppChain: [...value.activeAppChain],
+      remainingCalls: value.remainingCalls,
+      remainingRetries: value.remainingRetries - 1,
+      deadlineAtMs: value.deadlineAtMs,
+    },
+  };
+}
+
+/**
  * Confirms the selected capability's target, revision and kind have not
  * changed before dispatch. The target must STILL independently reauthorize
  * user/workspace/grant and (for frontend) live-window/session/consent.

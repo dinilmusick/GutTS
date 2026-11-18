@@ -1,6 +1,6 @@
 import { type CapabilityDescriptorV1, validateCapabilityDescriptor } from './capabilityContract.js';
 import {
-  contractExactKeys, contractId, contractRecord, type ContractCheck,
+  contractAppId, contractExactKeys, contractId, contractRecord, type ContractCheck,
   ULTRST_APP_CONTRACT_VERSION,
 } from './oauthClientContract.js';
 
@@ -46,8 +46,8 @@ const invocationKeys = [
 export function validateScopedInvocation(input: unknown): ContractCheck<ScopedInvocationV1> {
   const o = contractRecord(input);
   if (!o || !contractExactKeys(o, invocationKeys) || o.schemaVersion !== 1
-    || !contractId(o.callerAppId) || !contractId(o.targetAppId)
-    || !contractId(o.audienceAppId) || !contractId(o.principalUserId)
+    || !contractAppId(o.callerAppId) || !contractAppId(o.targetAppId)
+    || !contractAppId(o.audienceAppId) || !contractId(o.principalUserId)
     || !contractId(o.callerWorkspaceId) || !contractId(o.targetWorkspaceId)
     || !contractId(o.operationId) || !contractId(o.expectedRevision)
     || !contractId(o.grantId) || !contractId(o.traceId)
@@ -64,7 +64,7 @@ export function validateScopedInvocation(input: unknown): ContractCheck<ScopedIn
     || o.frontendConsentId !== undefined) {
     return { ok: false, reason: 'NON_FRONTEND_SESSION_NOT_ALLOWED' };
   }
-  if (!Array.isArray(o.activeAppChain) || !o.activeAppChain.every(contractId)
+  if (!Array.isArray(o.activeAppChain) || !o.activeAppChain.every(contractAppId)
     || o.activeAppChain.length === 0 || o.activeAppChain.length > 16
     || o.activeAppChain[o.activeAppChain.length - 1] !== o.callerAppId) {
     return { ok: false, reason: 'INVALID_CALL_ANCESTRY' };

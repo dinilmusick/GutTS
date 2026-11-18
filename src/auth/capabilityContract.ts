@@ -1,5 +1,5 @@
 import {
-  contractExactKeys, contractId, contractRecord, type ContractCheck,
+  contractAppId, contractExactKeys, contractId, contractRecord, type ContractCheck,
   ULTRST_APP_CONTRACT_VERSION,
 } from './oauthClientContract.js';
 
@@ -63,7 +63,7 @@ function validScopes(value: unknown): value is string[] {
 /** Unknown fields, secret values and raw workflow definitions are rejected. */
 export function validateCapabilityDescriptor(input: unknown): ContractCheck<CapabilityDescriptorV1> {
   const o = contractRecord(input);
-  if (!o || o.schemaVersion !== 1 || !contractId(o.appId)
+  if (!o || o.schemaVersion !== 1 || !contractAppId(o.appId)
     || !contractId(o.operationId) || !contractId(o.revision)
     || typeof o.displayName !== 'string' || o.displayName.trim().length === 0
     || o.displayName.length > 160

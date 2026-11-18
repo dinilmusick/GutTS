@@ -1,3 +1,5 @@
+import { parseIdentityId } from './identityIds.js';
+
 /**
  * Versioned, portable registration contract. Luth (not an app frontend) is
  * responsible for proving client ownership and authorizing each redirect.
@@ -36,6 +38,11 @@ export function contractRecord(value: unknown): Record<string, unknown> | null {
 export function contractId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 256
     && value.trim() === value && !/[\\\s]/.test(value);
+}
+
+/** Canonical app IDs are stable slugs/UUIDs, never deployment URLs or paths. */
+export function contractAppId(value: unknown): value is string {
+  return parseIdentityId('application', value) !== null;
 }
 
 export function contractExactKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
@@ -83,7 +90,7 @@ export function validateOAuthClientRegistration(
     'schemaVersion', 'appId', 'clientId', 'platform', 'publicClient',
     'pkceMethod', 'redirectUris', 'verifiedHosts',
   ])) return { ok: false, reason: 'INVALID_CLIENT_FIELDS' };
-  if (o.schemaVersion !== 1 || !contractId(o.appId) || !contractId(o.clientId)
+  if (o.schemaVersion !== 1 || !contractAppId(o.appId) || parseIdentityId('oauth_client', o.clientId) === null
     || !['web', 'ios', 'android', 'desktop'].includes(String(o.platform))
     || o.publicClient !== true || o.pkceMethod !== 'S256') {
     return { ok: false, reason: 'INVALID_CLIENT_IDENTITY_OR_PKCE' };

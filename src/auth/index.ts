@@ -5,3 +5,4 @@ export * from './capabilityContract.js';
 export * from './invocationContract.js';
 
 export * from './identityIds.js';
+export * from './applicationAuthClient.js';

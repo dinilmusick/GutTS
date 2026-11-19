@@ -99,7 +99,7 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
           if (manifest.version !== pkg.version) {
             manifest.version = pkg.version;
-            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\\n');
+            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
             console.log('Synchronized gutts.manifest.json to ' + pkg.version);
           }
           NODE

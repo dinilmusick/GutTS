@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseUniversalWorkloadConfigurationV1,
-  UNIVERSAL_WORKLOAD_CONFIGURATION_VERSION,
-} from '../src/auth/universalWorkloadConfiguration.js';
+  UNIVERSAL_WORKLOAD_CONFIG_VERSION,
+} from '../src/auth/universalWorkloadInitialization.js';
 
 const appId = 'srkl', clientId = 'srkl-worker-client';
 const valid = () => ({

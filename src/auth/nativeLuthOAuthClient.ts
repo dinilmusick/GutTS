@@ -1,5 +1,4 @@
 import {
-  DEFAULT_UNIVERSAL_DISCOVERY_URL,
   UniversalInitializationError,
   type UniversalConfigurationV1,
 } from './universalInitialization.js';
@@ -34,8 +33,11 @@ function validNativeRedirect(input: string): URL {
   }
   const loopback = value.protocol === 'http:' &&
     ['127.0.0.1', '[::1]', 'localhost'].includes(value.hostname);
+  const scheme = value.protocol.slice(0, -1);
+  const forbiddenSchemes = ['javascript', 'data', 'file', 'ftp', 'ws', 'wss', 'http'];
   if (value.protocol !== 'https:' && !loopback &&
-      !/^[a-z][a-z0-9+.-]*:$/.test(value.protocol)) {
+      (!/^[a-z][a-z0-9+.-]*:$/.test(value.protocol) ||
+        forbiddenSchemes.includes(scheme))) {
     throw new Error('INVALID_REGISTERED_NATIVE_REDIRECT');
   }
   return value;

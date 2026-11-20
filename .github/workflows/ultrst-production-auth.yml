@@ -1,6 +1,12 @@
 name: ULTRST production authentication boundary
 
 on:
+  pull_request:
+    paths:
+      - scripts/verify-live-auth.mjs
+      - scripts/verify-live-auth.nodecheck.mjs
+      - .github/workflows/ultrst-production-auth.yml
+      - docs/PRODUCTION_AUTH_CERTIFICATION.md
   push:
     branches:
       - main

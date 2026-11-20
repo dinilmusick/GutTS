@@ -1,0 +1,30 @@
+name: Universal Auth npm registry audit
+on:
+  push:
+    branches:
+      - audit/universal-auth-npm-registry-20261121
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify immutable package-version availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          for item in '@dinilmusick/gutts@2.2.3' '@dinilmusick/gutts@2.2.4' '@ultrst-armada/kloks@2.2.8' '@ultrst-armada/kloks@2.2.9'; do
+            if npm view "$item" version --registry=https://registry.npmjs.org/ --json > /tmp/out 2>/tmp/err; then
+              echo "AUDIT_NPM_EXISTS $item $(cat /tmp/out)"
+            elif grep -Eq 'E404|404 Not Found' /tmp/err; then
+              echo "AUDIT_NPM_ABSENT $item"
+            else
+              echo "AUDIT_NPM_ERROR $item"
+              cat /tmp/err
+              exit 1
+            fi
+          done

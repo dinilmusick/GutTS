@@ -175,7 +175,10 @@ jobs:
           set -euo pipefail
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
-          npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version dist.tarball dist.integrity --json
+          # npm Trusted Publishing acknowledges a new version before its
+          # version-specific metadata is visible on every registry replica.
+          # The pack/download loop below retries that transient read lag.
+          # Do not npm view the version before allowing retries to begin.
           for attempt in $(seq 1 40); do
             rm -f "$tmp"/*.tgz
             cache="$(mktemp -d)"

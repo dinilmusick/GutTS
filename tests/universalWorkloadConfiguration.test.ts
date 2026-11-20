@@ -6,7 +6,7 @@ import {
 
 const appId = 'srkl', clientId = 'srkl-worker-client';
 const valid = () => ({
-  protocol: UNIVERSAL_WORKLOAD_CONFIGURATION_VERSION, version: 1,
+  protocol: UNIVERSAL_WORKLOAD_CONFIG_VERSION, version: 1,
   application: { appId, ecosystemId: 'ultrst-armada', name: 'SRKL' },
   principal: { kind: 'workload', clientId },
   workspaceId: null,

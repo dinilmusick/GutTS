@@ -13,7 +13,13 @@ const doc = (enabled: boolean) => ({
     email: true, google: true, authorizationCode: true,
     pkceS256: true, publicNativeClients: enabled, trustedWorkloads: false,
   },
-  publicOAuth: { registrationRequired: true, nativeClientSecretAllowed: false },
+  publicOAuth: {
+    registrationRequired: true, nativeClientSecretAllowed: false,
+    nativeClients: enabled ? ['srkl-public-ios', 'ios-a', 'ios-b'].map(clientId => ({
+      clientId, platform: 'ios',
+      redirectUris: ['https://srkl.example.test/mobile/callback'],
+    })) : [],
+  },
   cache: { maxAgeSeconds: 30, generatedAt: new Date().toISOString() },
 });
 const config = {
@@ -105,6 +111,27 @@ describe('Native PKCE public client', () => {
     const keys = [...shared.keys()].filter(key => key.endsWith('.pending.v1'));
     expect(keys).toHaveLength(2);
     expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it('rejects an unregistered client ID or redirect even if native support is advertised', async () => {
+    const secureStore = {
+      read: async () => null, write: async () => {}, remove: async () => {},
+    };
+    const fetcher = vi.fn(async () => Response.json(doc(true))) as typeof fetch;
+    const impostor = createNativeLuthOAuthClient({
+      appId: 'srkl', clientId: 'unregistered-client',
+      registeredRedirectUri: 'https://srkl.example.test/mobile/callback',
+      expectedLuthOrigin: luth, runtime: 'ios', secureStore, fetcher,
+    });
+    await expect(impostor.beginAuthorization())
+      .rejects.toThrow('NATIVE_OAUTH_CLIENT_NOT_REGISTERED');
+    const wrongRedirect = createNativeLuthOAuthClient({
+      appId: 'srkl', clientId: 'srkl-public-ios',
+      registeredRedirectUri: 'https://srkl.example.test/mobile/unregistered',
+      expectedLuthOrigin: luth, runtime: 'ios', secureStore, fetcher,
+    });
+    await expect(wrongRedirect.beginAuthorization())
+      .rejects.toThrow('NATIVE_OAUTH_CLIENT_NOT_REGISTERED');
   });
 
   it('rejects unsafe redirect URIs rather than shipping confidential native client data', () => {

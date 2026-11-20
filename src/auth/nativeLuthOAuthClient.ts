@@ -64,8 +64,8 @@ interface TokenRecord {
   refreshToken?: string;
   expiresAt: number;
 }
-const STORE_PENDING = 'ultrst.luth.native.oauth.pending.v1';
-const STORE_TOKEN = 'ultrst.luth.native.oauth.token.v1';
+// The secure-store namespace must distinguish app, issuer, client and runtime.
+ // A shared Keychain/Keystore cannot accidentally load another app's token.
 
 /**
  * Native public OAuth client. No client secret is accepted or serialized.
@@ -85,6 +85,11 @@ export function createNativeLuthOAuthClient(options: NativeLuthPublicClientOptio
     throw new Error('UNTRUSTED_LUTH_ISSUER');
   }
   const issuerOrigin = luth.origin;
+  const namespace = 'ultrst.luth.native.' + b64url(new TextEncoder().encode(
+    [issuerOrigin, options.appId, options.clientId, options.runtime].join('|'),
+  ));
+  const STORE_PENDING = namespace + '.pending.v1';
+  const STORE_TOKEN = namespace + '.token.v1';
   const fetcher = options.fetcher ?? fetch;
   const client = createUniversalInitializationClient(
     { appId: options.appId, runtime: options.runtime,

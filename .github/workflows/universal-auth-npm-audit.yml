@@ -79,3 +79,24 @@ jobs:
           await checked('/api/config/v1?app_id=srkl',401);
           console.log('LUTH_PRODUCTION_UNAUTHENTICATED_DENIAL_PASS');
           NODE
+
+      - name: Verify deployed application OAuth start routes fail closed or redirect to canonical Luth
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          for(const [name,origin] of [['srkl','https://srkl-engine.todadjp.workers.dev'],['aiko','https://aiko.todadjp.workers.dev']]){
+            const response=await fetch(origin+'/api/auth/oidc/start',{redirect:'manual',headers:{accept:'application/json'},signal:AbortSignal.timeout(20000)});
+            assert([303,503].includes(response.status),name+' unexpected auth start status '+response.status);
+            if(response.status===303) {
+              const target=new URL(response.headers.get('location'));
+              assert.equal(target.origin,'https://luth.blueprint-ninjastudios.workers.dev');
+              console.log('APP_PRODUCTION_AUTH_START_REDIRECT '+name);
+            }else{
+              const body=await response.text();
+              assert(body.length<4000);
+              assert(!body.includes('clientSecret'));
+              console.log('APP_PRODUCTION_AUTH_START_UNPROVISIONED '+name);
+            }
+          }
+          NODE

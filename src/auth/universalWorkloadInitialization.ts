@@ -20,6 +20,25 @@ export interface UniversalWorkloadConfigurationV1 {
   cache: { maxAgeSeconds: 0; generatedAt: string; revision: string };
 }
 
+/** A public deployment origin must never include credentials or query data. */
+function publicOriginOrNull(value: unknown): boolean {
+  if (value === null) return true;
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.origin === value && !url.username && !url.password &&
+      !url.hash && !url.search &&
+      (url.protocol === 'https:' || (url.protocol === 'http:' &&
+        ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)));
+  } catch { return false; }
+}
+function ownFields(
+  value: Record<string, unknown>, fields: readonly string[],
+): boolean {
+  return Object.keys(value).every(field => fields.includes(field)) &&
+    fields.every(field => Object.prototype.hasOwnProperty.call(value, field));
+}
+
 /**
  * Explicit allowlist. Fail on any unrecognized top-level or settings field.
  * This contract deliberately excludes credentials, arbitrary SQL responses,
@@ -41,24 +60,37 @@ export function parseUniversalWorkloadConfigurationV1(
   const principal = object(root.principal);
   const settings = object(root.settings);
   const cache = object(root.cache);
-  if (Object.keys(root).some(key =>
-    !['protocol', 'version', 'application', 'principal', 'workspaceId', 'settings', 'cache'].includes(key)) ||
+  if (!/^[a-z0-9][a-z0-9_-]{0,119}$/.test(expectedAppId) ||
+      !/^[A-Za-z0-9._~-]{3,200}$/.test(expectedClientId) ||
+      !ownFields(root, [
+        'protocol', 'version', 'application', 'principal', 'workspaceId',
+        'settings', 'cache',
+      ]) || !ownFields(app, ['appId', 'ecosystemId', 'name']) ||
+      !ownFields(principal, ['kind', 'clientId']) ||
+      !ownFields(settings, [
+        'supportedServices', 'deploymentOrigin', 'deploymentEnvironment',
+      ]) || !ownFields(cache, ['maxAgeSeconds', 'generatedAt', 'revision']) ||
       root.protocol !== UNIVERSAL_WORKLOAD_CONFIG_VERSION || root.version !== 1 ||
       app.appId !== expectedAppId ||
-      typeof app.ecosystemId !== 'string' || typeof app.name !== 'string' ||
+      typeof app.ecosystemId !== 'string' || app.ecosystemId.length === 0 ||
+      app.ecosystemId.length > 120 ||
+      typeof app.name !== 'string' || app.name.length === 0 || app.name.length > 200 ||
       principal.kind !== 'workload' || principal.clientId !== expectedClientId ||
-      Object.keys(principal).some(key => !['kind', 'clientId'].includes(key)) ||
       root.workspaceId !== null ||
       !Array.isArray(settings.supportedServices) ||
-      !settings.supportedServices.every(value => typeof value === 'string') ||
-      (settings.deploymentOrigin !== null && typeof settings.deploymentOrigin !== 'string') ||
+      settings.supportedServices.length > 100 ||
+      !settings.supportedServices.every(value =>
+        typeof value === 'string' && /^[a-z0-9][a-z0-9_./-]{0,79}$/i.test(value)) ||
+      !publicOriginOrNull(settings.deploymentOrigin) ||
       (settings.deploymentEnvironment !== null &&
-       typeof settings.deploymentEnvironment !== 'string') ||
-      Object.keys(settings).some(key => ![
-        'supportedServices', 'deploymentOrigin', 'deploymentEnvironment',
-      ].includes(key)) ||
-      cache.maxAgeSeconds !== 0 || typeof cache.generatedAt !== 'string' ||
-      typeof cache.revision !== 'string') {
+       (typeof settings.deploymentEnvironment !== 'string' ||
+        settings.deploymentEnvironment.length === 0 ||
+        settings.deploymentEnvironment.length > 80)) ||
+      cache.maxAgeSeconds !== 0 ||
+      typeof cache.generatedAt !== 'string' ||
+      Number.isNaN(Date.parse(cache.generatedAt as string)) ||
+      typeof cache.revision !== 'string' ||
+      cache.revision.length === 0 || cache.revision.length > 240) {
     throw new UniversalInitializationError('CONFIG_VERSION_UNSUPPORTED', 'Unsupported or unsafe workload configuration.');
   }
   return root as unknown as UniversalWorkloadConfigurationV1;

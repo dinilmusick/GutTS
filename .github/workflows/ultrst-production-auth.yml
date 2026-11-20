@@ -1,0 +1,39 @@
+name: ULTRST production authentication boundary
+
+on:
+  push:
+    branches:
+      - main
+      - verify/live-auth-boundary-20261121
+    paths:
+      - scripts/verify-live-auth.mjs
+      - scripts/verify-live-auth.test.mjs
+      - .github/workflows/ultrst-production-auth.yml
+      - docs/PRODUCTION_AUTH_CERTIFICATION.md
+  workflow_dispatch:
+    inputs:
+      require_enrolled:
+        description: 'Require SRKL and Aiko OAuth start to redirect to Luth using code+PKCE'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify-public-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Verify denied, forged and post-enrollment test fixtures
+        run: node --test scripts/verify-live-auth.test.mjs
+      - name: Check actual production Luth, SRKL and Aiko public auth boundaries
+        env:
+          REQUIRE_ENROLLED: ${{ github.event_name == 'workflow_dispatch' && inputs.require_enrolled && 'true' || 'false' }}
+        run: node scripts/verify-live-auth.mjs

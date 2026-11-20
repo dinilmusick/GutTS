@@ -45,3 +45,28 @@ jobs:
           actual="sha512-$(openssl dgst -sha512 -binary "$archive" | openssl base64 -A)"
           test "$expected" = "$actual"
           echo "AUDIT_GUTTS_224_SIGNED_REGISTRY_INTEGRITY_PASS"
+
+      - name: Probe deployed Luth public discovery and unauthenticated config boundaries
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const base='https://luth.blueprint-ninjastudios.workers.dev';
+          async function checked(route, expected) {
+            const response=await fetch(base+route, {headers:{accept:'application/json'}, signal:AbortSignal.timeout(20000)});
+            assert.equal(response.status,expected,route+' status');
+            assert.match(response.headers.get('cache-control')||'', expected===200?/max-age=/:/no-store/);
+            return response.json();
+          }
+          for(const app of ['srkl','aiko']) {
+            const doc=await checked('/api/discovery/v1?app_id='+app,200);
+            assert.equal(doc.application.appId,app);
+            assert.equal(doc.issuer,base+'/api/auth');
+            assert.equal(doc.configurationUrl,base+'/api/config/v1');
+            assert(!JSON.stringify(doc).toLowerCase().includes('clientsecret'));
+            console.log('LUTH_PRODUCTION_DISCOVERY_PASS '+app);
+          }
+          await checked('/api/discovery/v1?app_id=unknown',404);
+          await checked('/api/config/v1?app_id=srkl',401);
+          console.log('LUTH_PRODUCTION_UNAUTHENTICATED_DENIAL_PASS');
+          NODE

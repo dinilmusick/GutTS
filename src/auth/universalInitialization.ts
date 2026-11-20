@@ -33,6 +33,12 @@ export interface UniversalApplicationIdentity {
   name: string;
 }
 
+export interface PublicNativeOAuthClient {
+  clientId: string;
+  platform: 'desktop' | 'android' | 'ios';
+  redirectUris: string[];
+}
+
 export interface UniversalDiscoveryV1 {
   protocol: typeof UNIVERSAL_DISCOVERY_VERSION;
   version: 1;
@@ -40,6 +46,8 @@ export interface UniversalDiscoveryV1 {
   oidcDiscoveryUrl: string;
   oauthAuthorizationServerMetadataUrl: string;
   configurationUrl: string;
+  /** Protected, independently authorized client-credentials endpoint. */
+  workloadConfigurationUrl?: string;
   sessionUrl: string;
   capabilities: {
     email: boolean;
@@ -54,6 +62,8 @@ export interface UniversalDiscoveryV1 {
   publicOAuth: {
     registrationRequired: true;
     nativeClientSecretAllowed: false;
+    /** Present only for operator-approved public clients; never contains secrets. */
+    nativeClients?: PublicNativeOAuthClient[];
   };
   cache: { maxAgeSeconds: number; generatedAt: string };
 }
@@ -113,6 +123,18 @@ function secureOrigin(value: unknown): string {
   return url.origin;
 }
 
+function publicNativeRedirectSafe(value: unknown, platform: string): boolean {
+  if (typeof value !== 'string' || value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    if (url.username || url.password || url.hash || url.search ||
+        !url.pathname || url.pathname === '/') return false;
+    if (url.protocol === 'https:') return true;
+    return platform === 'desktop' && url.protocol === 'http:' &&
+      ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
+  } catch { return false; }
+}
+
 /** Validate discovery before using any returned authentication or configuration URL. */
 export function parseUniversalDiscoveryV1(
   payload: unknown,
@@ -142,11 +164,45 @@ export function parseUniversalDiscoveryV1(
       oauth.registrationRequired !== true || oauth.nativeClientSecretAllowed !== false) {
     throw new UniversalInitializationError('INVALID_DISCOVERY', 'Insecure authentication metadata.');
   }
+  if (Object.keys(oauth).some(key =>
+    !['registrationRequired', 'nativeClientSecretAllowed', 'nativeClients'].includes(key))) {
+    throw new UniversalInitializationError('INVALID_DISCOVERY', 'Unexpected OAuth client metadata.');
+  }
+  const native = oauth.nativeClients;
+  if ((caps.publicNativeClients || native !== undefined) &&
+      (!Array.isArray(native) || native.length > 20 ||
+       Boolean(caps.publicNativeClients) !== (native.length > 0))) {
+    throw new UniversalInitializationError('INVALID_DISCOVERY', 'Invalid native client availability.');
+  }
+  if (Array.isArray(native)) {
+    for (const candidate of native) {
+      const registration = record(candidate);
+      if (Object.keys(registration).some(key =>
+        !['clientId', 'platform', 'redirectUris'].includes(key)) ||
+        typeof registration.clientId !== 'string' ||
+        !/^[a-zA-Z0-9._~-]{3,200}$/.test(registration.clientId) ||
+        !['desktop', 'android', 'ios'].includes(String(registration.platform)) ||
+        !Array.isArray(registration.redirectUris) ||
+        registration.redirectUris.length < 1 || registration.redirectUris.length > 10 ||
+        !registration.redirectUris.every(value =>
+          publicNativeRedirectSafe(value, String(registration.platform)))) {
+        throw new UniversalInitializationError('INVALID_DISCOVERY', 'Invalid public native client metadata.');
+      }
+    }
+  }
   const trusted = secureOrigin(expectedIssuerOrigin);
   for (const key of ['issuer', 'oidcDiscoveryUrl', 'oauthAuthorizationServerMetadataUrl', 'configurationUrl', 'sessionUrl']) {
     if (secureOrigin(raw[key]) !== trusted) {
       throw new UniversalInitializationError('UNTRUSTED_ISSUER', 'Discovery endpoint is outside the trusted Luth origin.');
     }
+  }
+  if (raw.workloadConfigurationUrl !== undefined &&
+      (secureOrigin(raw.workloadConfigurationUrl) !== trusted ||
+       new URL(raw.workloadConfigurationUrl as string).pathname !== '/api/config/workload/v1')) {
+    throw new UniversalInitializationError('UNTRUSTED_ISSUER', 'Unexpected workload configuration endpoint.');
+  }
+  if (caps.trustedWorkloads && typeof raw.workloadConfigurationUrl !== 'string') {
+    throw new UniversalInitializationError('INVALID_DISCOVERY', 'Missing workload configuration endpoint.');
   }
   if (new URL(raw.issuer as string).pathname !== '/api/auth' ||
       new URL(raw.configurationUrl as string).pathname !== '/api/config/v1') {

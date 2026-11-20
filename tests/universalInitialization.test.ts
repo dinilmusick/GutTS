@@ -44,6 +44,40 @@ describe('Universal Luth initialization contract', () => {
     expect(() => parseUniversalDiscoveryV1(discovery(), 'srkl', 'http://public.example.test')).toThrow();
     expect(() => parseUniversalDiscoveryV1({ ...discovery(), cache: { ...discovery().cache, maxAgeSeconds: 3600 } }, 'srkl', issuerOrigin)).toThrow();
   });
+  it('requires exact public native registrations to be present when capability is advertised', () => {
+    const metadata = {
+      ...discovery(),
+      capabilities: { ...discovery().capabilities, publicNativeClients: true },
+      publicOAuth: { registrationRequired: true, nativeClientSecretAllowed: false,
+        nativeClients: [{ clientId: 'srkl-ios-public', platform: 'ios',
+          redirectUris: ['https://srkl.example.test/mobile/callback'] }] },
+    };
+    expect(parseUniversalDiscoveryV1(metadata, 'srkl', issuerOrigin)
+      .publicOAuth.nativeClients?.[0].clientId).toBe('srkl-ios-public');
+    expect(() => parseUniversalDiscoveryV1({ ...metadata,
+      publicOAuth: { ...metadata.publicOAuth, nativeClients: [] },
+    }, 'srkl', issuerOrigin)).toThrow();
+  });
+  it('rejects secret-bearing public metadata and downgraded native redirects', () => {
+    const client = { clientId: 'srkl-public-ios', platform: 'ios',
+      redirectUris: ['https://srkl.example.test/mobile/callback'] };
+    const base = { ...discovery(),
+      capabilities: { ...discovery().capabilities, publicNativeClients: true },
+      publicOAuth: { registrationRequired: true, nativeClientSecretAllowed: false,
+        nativeClients: [client] },
+    };
+    expect(() => parseUniversalDiscoveryV1({ ...base,
+      publicOAuth: { ...base.publicOAuth, clientSecret: 'not-allowed' },
+    }, 'srkl', issuerOrigin)).toThrow();
+    expect(() => parseUniversalDiscoveryV1({ ...base,
+      publicOAuth: { ...base.publicOAuth,
+        nativeClients: [{ ...client, clientSecret: 'not-allowed' }] },
+    }, 'srkl', issuerOrigin)).toThrow();
+    expect(() => parseUniversalDiscoveryV1({ ...base,
+      publicOAuth: { ...base.publicOAuth,
+        nativeClients: [{ ...client, redirectUris: ['http://evil.example.test/callback'] }] },
+    }, 'srkl', issuerOrigin)).toThrow();
+  });
   it('accepts least-privilege no-store configuration only for the expected app and user', () => {
     expect(parseUniversalConfigurationV1(config(), 'srkl', 'user-1').principal.userId).toBe('user-1');
     expect(() => parseUniversalConfigurationV1(config(), 'aiko', 'user-1')).toThrow();

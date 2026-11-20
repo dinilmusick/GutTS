@@ -116,7 +116,11 @@ export function createNativeLuthOAuthClient(options: NativeLuthPublicClientOptio
 
   async function beginAuthorization(): Promise<string> {
     const doc = await client.discover();
-    if (!doc.capabilities.publicNativeClients || !doc.capabilities.pkceS256) {
+    if (!doc.capabilities.publicNativeClients || !doc.capabilities.pkceS256 ||
+        !doc.publicOAuth.nativeClients?.some(registration =>
+          registration.clientId === options.clientId &&
+          registration.platform === options.runtime &&
+          registration.redirectUris.includes(redirect.toString()))) {
       throw new Error('NATIVE_OAUTH_CLIENT_NOT_REGISTERED');
     }
     const state = randomToken(), verifier = randomToken();

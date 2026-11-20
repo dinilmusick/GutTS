@@ -136,7 +136,7 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Write Krusbl release attestation
-        if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && steps.registry.outputs.exists == 'false') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && steps.changeset.outputs.changed == 'true' && steps.registry.outputs.exists == 'false') || (github.event_name == 'workflow_dispatch' && inputs.publish)
         shell: bash
         env:
           SOURCE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -158,7 +158,7 @@ jobs:
           NODE
 
       - name: Publish to npm using Trusted Publishing
-        if: (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && steps.registry.outputs.exists == 'false'
+        if: ((github.event_name == 'workflow_run' && steps.changeset.outputs.changed == 'true') || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && steps.registry.outputs.exists == 'false'
         env:
           NODE_AUTH_TOKEN: ""
         run: |
@@ -206,7 +206,7 @@ jobs:
           echo "FATAL: Registry metadata is present but no verified tarball was downloadable after ~20 minutes" >&2
           exit 1
       - name: Notify Skipo after successful upstream publication
-        if: success() && steps.registry.outputs.exists == 'false' && (github.event_name == 'workflow_run' || github.event_name == 'release' || (github.event_name == 'schedule' && steps.updates.outputs.changed == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish))
+        if: success() && steps.registry.outputs.exists == 'false' && ((github.event_name == 'workflow_run' && steps.changeset.outputs.changed == 'true') || github.event_name == 'release' || (github.event_name == 'schedule' && steps.updates.outputs.changed == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish))
         env:
           SYNC_TOKEN: ${{ secrets.ECOSYSTEM_SYNC_TOKEN }}
         shell: bash

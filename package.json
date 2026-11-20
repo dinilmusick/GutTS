@@ -1,6 +1,6 @@
 {
   "name": "@dinilmusick/gutts",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "private": false,
   "description": "Global Utilities for TypeScript applications.",
   "type": "module",

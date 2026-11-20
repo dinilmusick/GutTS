@@ -8,3 +8,4 @@ export * from './identityIds.js';
 export * from './applicationAuthClient.js';
 export * from './universalInitialization.js';
 export * from './universalInitializationClient.js';
+export * from './nativeLuthOAuthClient.js';

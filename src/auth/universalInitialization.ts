@@ -46,6 +46,8 @@ export interface UniversalDiscoveryV1 {
   oidcDiscoveryUrl: string;
   oauthAuthorizationServerMetadataUrl: string;
   configurationUrl: string;
+  /** Protected, independently authorized client-credentials endpoint. */
+  workloadConfigurationUrl?: string;
   sessionUrl: string;
   capabilities: {
     email: boolean;
@@ -193,6 +195,14 @@ export function parseUniversalDiscoveryV1(
     if (secureOrigin(raw[key]) !== trusted) {
       throw new UniversalInitializationError('UNTRUSTED_ISSUER', 'Discovery endpoint is outside the trusted Luth origin.');
     }
+  }
+  if (raw.workloadConfigurationUrl !== undefined &&
+      (secureOrigin(raw.workloadConfigurationUrl) !== trusted ||
+       new URL(raw.workloadConfigurationUrl as string).pathname !== '/api/config/workload/v1')) {
+    throw new UniversalInitializationError('UNTRUSTED_ISSUER', 'Unexpected workload configuration endpoint.');
+  }
+  if (caps.trustedWorkloads && typeof raw.workloadConfigurationUrl !== 'string') {
+    throw new UniversalInitializationError('INVALID_DISCOVERY', 'Missing workload configuration endpoint.');
   }
   if (new URL(raw.issuer as string).pathname !== '/api/auth' ||
       new URL(raw.configurationUrl as string).pathname !== '/api/config/v1') {

@@ -74,7 +74,7 @@ describe('Native PKCE public client', () => {
     callback.searchParams.set('code', 'abcdefghijklmnopqrstuvwxyz');
     callback.searchParams.set('iss', luth + '/api/auth');
     await client.completeAuthorization(callback.toString());
-    expect(secrets.has('ultrst.luth.native.oauth.pending.v1')).toBe(false);
+    expect([...secrets.keys()].some(key => key.endsWith('.pending.v1'))).toBe(false);
     const tokenExchange = requests.find(r => r.url.includes('/oauth2/token'))!;
     const body = String(tokenExchange.init?.body);
     expect(body).toContain('code_verifier=');
@@ -83,6 +83,28 @@ describe('Native PKCE public client', () => {
     expect(requests.find(r => r.url.includes('/config/v1'))?.init?.headers).toBeDefined();
     await client.signOut();
     expect(secrets.size).toBe(0);
+  });
+
+  it('isolates tokens and pending PKCE state across separate public app registrations', async () => {
+    const shared = new Map<string, string>();
+    const secureStore = {
+      read: async (key: string) => shared.get(key) ?? null,
+      write: async (key: string, value: string) => { shared.set(key, value); },
+      remove: async (key: string) => { shared.delete(key); },
+    };
+    const fetcher = vi.fn(async () => Response.json(doc(true)));
+    const options = {
+      appId: 'srkl', registeredRedirectUri: 'https://srkl.example.test/mobile/callback',
+      runtime: 'ios' as const, expectedLuthOrigin: luth,
+      secureStore, fetcher: fetcher as typeof fetch,
+    };
+    const first = createNativeLuthOAuthClient({ ...options, clientId: 'ios-a' });
+    const second = createNativeLuthOAuthClient({ ...options, clientId: 'ios-b' });
+    await first.beginAuthorization();
+    await second.beginAuthorization();
+    const keys = [...shared.keys()].filter(key => key.endsWith('.pending.v1'));
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).not.toBe(keys[1]);
   });
 
   it('rejects unsafe redirect URIs rather than shipping confidential native client data', () => {

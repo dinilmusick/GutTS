@@ -28,3 +28,19 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Independent immutable GutTS 2.2.4 artifact verification
+        shell: bash
+        run: |
+          echo "AUDIT_VERIFYING_GUTTS_224_ARTIFACT"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          npm pack '@dinilmusick/gutts@2.2.4' --pack-destination "$tmp" --silent
+          archive="$(find "$tmp" -maxdepth 1 -name '*.tgz' -print -quit)"
+          test -n "$archive"
+          tar -tzf "$archive" | grep -Fx 'package/dist/auth/universalInitialization.js'
+          tar -tzf "$archive" | grep -Fx 'package/dist/auth/universalInitializationClient.js'
+          expected="$(npm view '@dinilmusick/gutts@2.2.4' dist.integrity --registry=https://registry.npmjs.org/)"
+          actual="sha512-$(openssl dgst -sha512 -binary "$archive" | openssl base64 -A)"
+          test "$expected" = "$actual"
+          echo "AUDIT_GUTTS_224_SIGNED_REGISTRY_INTEGRITY_PASS"

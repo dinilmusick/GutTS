@@ -9,6 +9,7 @@ on:
       - scripts/verify-live-auth.mjs
       - scripts/verify-live-auth.test.mjs
       - .github/workflows/ultrst-production-auth.yml
+      - docs/PRODUCTION_AUTH_CERTIFICATION.md
   workflow_dispatch:
     inputs:
       require_enrolled:

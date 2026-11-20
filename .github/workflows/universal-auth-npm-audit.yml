@@ -1,4 +1,5 @@
 name: Universal Auth npm registry audit
+# Recheck artifact after propagation-ready Kloks frozen install
 on:
   push:
     branches:

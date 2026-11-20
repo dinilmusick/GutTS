@@ -63,7 +63,16 @@ jobs:
             assert.equal(doc.application.appId,app);
             assert.equal(doc.issuer,base+'/api/auth');
             assert.equal(doc.configurationUrl,base+'/api/config/v1');
-            assert(!JSON.stringify(doc).toLowerCase().includes('clientsecret'));
+            function assertNoCredentials(value) {
+              if (!value || typeof value!=='object') return;
+              for (const [key, nested] of Object.entries(value)) {
+                if (/^(clientSecret|client_secret|accessToken|refreshToken|databaseUrl|systemDatabaseUrl|privateKey|signingKey|jwtSecret)$/i.test(key)) {
+                  assert.fail('Confidential configuration field exposed: '+key);
+                }
+                assertNoCredentials(nested);
+              }
+            }
+            assertNoCredentials(doc);
             console.log('LUTH_PRODUCTION_DISCOVERY_PASS '+app);
           }
           await checked('/api/discovery/v1?app_id=unknown',404);

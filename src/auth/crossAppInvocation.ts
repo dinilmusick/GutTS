@@ -82,6 +82,12 @@ export function validateRetryFingerprint(
     || x.operationId !== y.operationId || x.expectedRevision !== y.expectedRevision
     || x.operationKind !== y.operationKind || x.grantId !== y.grantId
     || x.traceId !== y.traceId
+    || x.frontendSessionId !== y.frontendSessionId
+    || x.frontendPermission !== y.frontendPermission
+    || x.frontendConsentId !== y.frontendConsentId
+    || x.maxDepth !== y.maxDepth || x.remainingCalls !== y.remainingCalls
+    || x.activeAppChain.length !== y.activeAppChain.length
+    || x.activeAppChain.some((appId, index) => appId !== y.activeAppChain[index])
     || x.deadlineAtMs !== y.deadlineAtMs) {
     return { ok: false, reason: 'REPLAY_FINGERPRINT_MISMATCH' };
   }
@@ -107,8 +113,15 @@ export function validateInvocationAttempt(input: unknown): ContractCheck<Invocat
     || (value.resultClass === 'success'
       && (value.delivery !== 'acknowledged'
         || typeof value.httpStatus !== 'number' || value.httpStatus < 200 || value.httpStatus >= 300))
-    || (value.resultClass === 'timeout' && value.delivery !== 'uncertain')
-    || (value.resultClass === 'unavailable' && value.delivery === 'acknowledged')
+    || (value.resultClass === 'timeout' && (value.delivery !== 'uncertain'
+      || (value.httpStatus !== undefined && value.httpStatus !== 504)))
+    || (value.resultClass === 'unavailable' && (value.delivery === 'acknowledged'
+      || (value.httpStatus !== undefined && value.delivery === 'not_sent')
+      || (value.httpStatus !== undefined && ![502, 503, 504].includes(Number(value.httpStatus)))))
+    || (['unauthorized', 'forbidden'].includes(String(value.resultClass))
+      && value.delivery !== 'acknowledged')
+    || (value.resultClass === 'application_error' && (value.delivery !== 'acknowledged'
+      || (typeof value.httpStatus === 'number' && value.httpStatus < 400)))
     || (value.resultClass === 'invalid_target' && value.delivery === 'not_sent' && value.httpStatus !== undefined)) {
     return { ok: false, reason: 'CONTRADICTORY_INVOCATION_ATTEMPT' };
   }

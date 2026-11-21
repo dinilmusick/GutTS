@@ -59,8 +59,7 @@ export function validateAuthenticatedEndpoint(input: unknown): ContractCheck<str
       || (url.pathname === '/' && url.href === input + '/');
     if (!canonical || url.protocol !== 'https:' || !url.hostname
       || url.username || url.password || url.hash || url.search
-      || url.hostname === 'localhost' || url.hostname.endsWith('.localhost')
-      || url.hostname.endsWith('.local') || url.hostname.includes('%')
+      || url.hostname.includes('%')
       || url.pathname.includes('//')) {
       return { ok: false, reason: 'INSECURE_OR_AMBIGUOUS_ENDPOINT' };
     }
@@ -77,7 +76,8 @@ export function validateNativePeerBeacon(input: unknown, nowMs: number): Contrac
     || value.schemaVersion !== 1 || !contractAppId(value.appId)
     || parseIdentityId('deployment', value.deploymentId) === null
     || value.transport !== 'authenticated_https'
-    || !contractId(value.nonce) || !time(nowMs)
+    || !contractId(value.nonce) || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(String(value.nonce))
+    || !time(nowMs)
     || !time(value.issuedAtMs) || !time(value.expiresAtMs)) {
     return { ok: false, reason: 'INVALID_PEER_BEACON' };
   }
@@ -149,5 +149,6 @@ export function crossAppTierOrder(host: CrossAppHostV1): readonly CrossAppTierV1
     case 'composed': return ['in_process', 'native_peer', 'cloud'];
     case 'desktop': return ['native_peer', 'cloud'];
     case 'cloud_only': return ['cloud'];
+    default: throw new TypeError('UNKNOWN_CROSS_APP_HOST');
   }
 }

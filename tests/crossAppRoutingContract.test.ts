@@ -56,6 +56,9 @@ describe('portable cross-app discovery and route contracts', () => {
     expect(validateAuthenticatedEndpoint('https://example.org/invoke?token=x').ok).toBe(false);
     expect(validateAuthenticatedEndpoint('https://example.org/invoke#private').ok).toBe(false);
     expect(validateAuthenticatedEndpoint('https://example.org/invoke').ok).toBe(true);
+    expect(validateAuthenticatedEndpoint('https://localhost:8443/invoke').ok).toBe(true);
+    expect(validateAuthenticatedEndpoint('https://node.local:8443/invoke').ok).toBe(true);
+    expect(validateNativePeerBeacon({ ...beacon, nonce: 'https://bad.example' }, now).ok).toBe(false);
   });
 
   it('orders only authenticated-registry-supplied precomputed scores, not recomputed weights', () => {
@@ -95,6 +98,7 @@ describe('routed invocation authorization boundary and retry safety', () => {
       { ...routed, invocation: { ...invocation, targetWorkspaceId: 'workspace-C' } },
       { ...routed, invocation: { ...invocation, grantId: 'grant-B' } },
       { ...routed, executionId: 'execution-2' },
+      { ...routed, invocation: { ...invocation, activeAppChain: ['other-app', 'app-brwlr'] } },
     ]) {
       expect(validateRetryFingerprint(routed, changed, now).ok).toBe(false);
     }
@@ -107,6 +111,9 @@ describe('routed invocation authorization boundary and retry safety', () => {
     expect(evaluateInvocationFailover(routed, forbidden, now, 'shared_atomic').mayTryNext).toBe(false);
     expect(validateInvocationAttempt({ ...unavailability, httpStatus: 401 }).ok).toBe(false);
     expect(validateInvocationAttempt({ ...timeout, delivery: 'not_sent' }).ok).toBe(false);
+    expect(validateInvocationAttempt({ ...unavailability, httpStatus: 503 }).ok).toBe(false);
+    expect(validateInvocationAttempt({ ...unavailability, delivery: 'uncertain', httpStatus: 200 }).ok).toBe(false);
+    expect(validateInvocationAttempt({ ...timeout, httpStatus: 200 }).ok).toBe(false);
     expect(evaluateInvocationFailover(routed, unavailability, now).mayTryNext).toBe(true);
     expect(evaluateInvocationFailover(routed, timeout, now)).toEqual({
       mayTryNext: false, reason: 'POSSIBLE_DUPLICATE_SIDE_EFFECT',

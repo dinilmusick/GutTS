@@ -54,10 +54,25 @@ try {
     '@dinilmusick/gutts/worker',
     '@dinilmusick/gutts/server',
     '@dinilmusick/gutts/server/auth',
+    '@dinilmusick/gutts/auth',
     '@dinilmusick/gutts/server/models',
     '@dinilmusick/gutts/storage/google-drive',
   ];
   for (const specifier of portableSpecs) run(portableConsumerDir, `await import(${JSON.stringify(specifier)})`);
+  // Verify the real installed npm subpath exports newly introduced peer/cloud
+  // contracts; a repository-local source export is insufficient certification.
+  run(portableConsumerDir, `
+    import assert from 'node:assert/strict';
+    const auth = await import('@dinilmusick/gutts/auth');
+    for (const symbol of [
+      'validateNativePeerBeacon', 'validateNativePeerForTarget',
+      'validateRankedCloudDeployment', 'orderRankedCloudDeployments',
+      'validateRoutedInvocation', 'validateRetryFingerprint',
+      'validateInvocationAttempt', 'evaluateInvocationFailover',
+    ]) assert.equal(typeof auth[symbol], 'function', symbol + ' must ship in npm tarball');
+    assert.deepEqual(auth.crossAppTierOrder('desktop'), ['native_peer', 'cloud']);
+  `);
+
 
   // S3 must import with its AWS peer installed and Google SDK deliberately absent.
   install(s3ConsumerDir, tarball, '@aws-sdk/client-s3@^3.1164.0', '@types/node@^22');

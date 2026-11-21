@@ -80,6 +80,7 @@ jobs:
             npm version "$BUMP" --no-git-tag-version
             find .changeset -maxdepth 1 -type f -name '*.md' ! -name README.md -delete
             git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add -A package.json pnpm-lock.yaml .changeset
             git commit -m "chore(release): apply Krusbl changeset [skip ci]"
             git push origin HEAD:main
@@ -184,7 +185,11 @@ jobs:
             cache="$(mktemp -d)"
             if NPM_CONFIG_CACHE="$cache" npm pack "${PACKAGE_NAME}@${PACKAGE_VERSION}" --pack-destination "$tmp" --loglevel=error > "$tmp/pack.log" 2> "$tmp/pack.err"; then
               tgz="$(find "$tmp" -maxdepth 1 -name '*.tgz' -print -quit)"
-              if [ -n "$tgz" ] && tar -tzf "$tgz" | grep -Fx 'package/dist/urls/path-safety.js' >/dev/null; then
+              if [ -n "$tgz" ] \
+                && tar -tzf "$tgz" | grep -Fx 'package/dist/urls/path-safety.js' >/dev/null \
+                && tar -tzf "$tgz" | grep -Fx 'package/dist/auth/crossAppTargets.js' >/dev/null \
+                && tar -tzf "$tgz" | grep -Fx 'package/dist/auth/crossAppInvocation.js' >/dev/null \
+                && tar -xOzf "$tgz" package/dist/auth/index.js | grep -F './crossAppInvocation.js' >/dev/null; then
                 expected="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.integrity)"
                 actual="sha512-$(openssl dgst -sha512 -binary "$tgz" | openssl base64 -A)"
                 if [ "$expected" = "$actual" ]; then

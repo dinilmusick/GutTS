@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  crossAppTierOrder, evaluateInvocationFailover, orderRankedCloudDeployments,
+  consumeInvocationRetry, crossAppTierOrder, evaluateInvocationFailover, orderRankedCloudDeployments,
   validateAuthenticatedEndpoint, validateInvocationAttempt, validateNativePeerBeacon,
   validateRankedCloudDeployment, validateRetryFingerprint, validateRoutedInvocation,
   validateNativePeerForTarget,
@@ -95,6 +95,12 @@ describe('routed invocation authorization boundary and retry safety', () => {
 
   it('prevents replay of one idempotency key across a different principal, target, payload or grant', () => {
     expect(validateRetryFingerprint(routed, routed, now).ok).toBe(true);
+    const frontend = { ...routed, invocation: { ...invocation, operationKind: 'frontend',
+      frontendSessionId: 'session-1', frontendPermission: 'act', frontendConsentId: 'consent-1' } };
+    expect(validateRoutedInvocation(frontend, now).ok).toBe(true);
+    expect(validateRetryFingerprint(frontend, { ...frontend, invocation: {
+      ...frontend.invocation, frontendConsentId: 'consent-2',
+    } }, now).ok).toBe(false);
     for (const changed of [
       { ...routed, payloadSha256: 'b'.repeat(64) },
       { ...routed, invocation: { ...invocation, principalUserId: 'user-B' } },
@@ -129,6 +135,16 @@ describe('routed invocation authorization boundary and retry safety', () => {
     expect(evaluateInvocationFailover(routed, timeout, now, atomicPolicy).mayTryNext).toBe(true);
     expect(evaluateInvocationFailover({ ...routed, effect: 'read', idempotencyKey: undefined }, timeout, now, readPolicy).mayTryNext).toBe(true);
     expect(evaluateInvocationFailover({ ...routed, invocation: { ...invocation, remainingRetries: 0 } }, timeout, now, atomicPolicy).mayTryNext).toBe(false);
+    const first = consumeInvocationRetry(invocation, now);
+    expect(first.ok).toBe(true);
+    if (first.ok) {
+      const second = consumeInvocationRetry({ ...invocation, remainingRetries: first.value.remainingRetries }, now);
+      expect(second.ok).toBe(true);
+      if (second.ok) {
+        const exhausted = { ...routed, invocation: { ...invocation, remainingRetries: second.value.remainingRetries } };
+        expect(evaluateInvocationFailover(exhausted, timeout, now, atomicPolicy).reason).toBe('RETRY_BUDGET_EXHAUSTED');
+      }
+    }
     expect(evaluateInvocationFailover(routed, timeout, now + 61_000, atomicPolicy).mayTryNext).toBe(false);
     expect(evaluateInvocationFailover(routed, { schemaVersion: 1, resultClass: 'application_error', delivery: 'acknowledged', httpStatus: 500 }, now, writePolicy).mayTryNext).toBe(false);
   });

@@ -59,6 +59,15 @@ describe('portable cross-app discovery and route contracts', () => {
     expect(validateAuthenticatedEndpoint('https://example.org/invoke?token=x').ok).toBe(false);
     expect(validateAuthenticatedEndpoint('https://example.org/invoke#private').ok).toBe(false);
     expect(validateAuthenticatedEndpoint('https://example.org/invoke').ok).toBe(true);
+    expect(validateAuthenticatedEndpoint('https://[::1]:8443/invoke').ok).toBe(true);
+    for (const invalidHost of ['*.example.org', 'example..org', '-bad.org', 'bad-.org', 'example.org.']) {
+      expect(validateAuthenticatedEndpoint('https://' + invalidHost + '/invoke').ok).toBe(false);
+      expect(validateNativePeerBeacon({ ...beacon, endpointUrl: 'https://' + invalidHost + '/invoke' }, now).ok).toBe(false);
+      expect(validateRankedCloudDeployment({ ...cloud, endpointUrl: 'https://' + invalidHost + '/invoke' }, 'app-aiko', 'workflow.execute', now).ok).toBe(false);
+    }
+    expect(validateAuthenticatedEndpoint('https://example.org/abc%2Fadmin').ok).toBe(false);
+    expect(validateAuthenticatedEndpoint('https://example.org/abc%5Cadmin').ok).toBe(false);
+    expect(validateAuthenticatedEndpoint('https://example.org/abc%00admin').ok).toBe(false);
     expect(validateAuthenticatedEndpoint('https://localhost:8443/invoke').ok).toBe(true);
     expect(validateAuthenticatedEndpoint('https://node.local:8443/invoke').ok).toBe(true);
     expect(validateNativePeerBeacon({ ...beacon, nonce: 'https://bad.example' }, now).ok).toBe(false);

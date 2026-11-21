@@ -48,6 +48,15 @@ function time(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
+/** WHATWG URL parsing is intentionally permissive (including wildcard/empty DNS labels). */
+function validEndpointHost(host: string): boolean {
+  // IPv6 literals have already been parsed and normalized by URL.
+  if (host.startsWith('[') && host.endsWith(']')) return true;
+  return host.length > 0 && host.length <= 253 && host.split('.').every((label) =>
+    label.length > 0 && label.length <= 63
+    && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label));
+}
+
 /** Reject URL credentials, fragments, query injections, insecure LAN endpoints and ambiguous hostnames. */
 export function validateAuthenticatedEndpoint(input: unknown): ContractCheck<string> {
   if (typeof input !== 'string' || input.length > 2048 || input.trim() !== input) {
@@ -57,10 +66,9 @@ export function validateAuthenticatedEndpoint(input: unknown): ContractCheck<str
     const url = new URL(input);
     const canonical = url.href === input
       || (url.pathname === '/' && url.href === input + '/');
-    if (!canonical || url.protocol !== 'https:' || !url.hostname
+    if (!canonical || url.protocol !== 'https:' || !validEndpointHost(url.hostname)
       || url.username || url.password || url.hash || url.search
-      || url.hostname.includes('%')
-      || url.pathname.includes('//')) {
+      || url.pathname.includes('//') || /%(?:2f|5c|00)/i.test(url.pathname)) {
       return { ok: false, reason: 'INSECURE_OR_AMBIGUOUS_ENDPOINT' };
     }
   } catch {

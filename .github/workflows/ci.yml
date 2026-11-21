@@ -40,6 +40,10 @@ jobs:
         run: pnpm run test:published
       - name: Browser-target bundle test
         run: npx --yes esbuild@0.25.0 tests/fixtures/gutts-browser.mjs --bundle --platform=browser --format=esm --outfile=/tmp/gutts-browser-smoke.js
+      - name: Cross-app authentication module browser and Worker bundling
+        run: |
+          npx --yes esbuild@0.25.0 tests/fixtures/gutts-crossapp.mjs --bundle --platform=browser --format=esm --outfile=/tmp/gutts-crossapp-browser.js
+          npx --yes esbuild@0.25.0 tests/fixtures/gutts-crossapp.mjs --bundle --platform=neutral --format=esm --outfile=/tmp/gutts-crossapp-worker.js
       - name: Cloudflare Workers runtime smoke test
         run: pnpm run test:workers
       - name: Package archive inspection

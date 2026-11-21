@@ -3,6 +3,7 @@ import {
   crossAppTierOrder, evaluateInvocationFailover, orderRankedCloudDeployments,
   validateAuthenticatedEndpoint, validateInvocationAttempt, validateNativePeerBeacon,
   validateRankedCloudDeployment, validateRetryFingerprint, validateRoutedInvocation,
+  validateNativePeerForTarget,
 } from '../src/auth/index.js';
 
 const now = 2_000_000;
@@ -43,6 +44,8 @@ describe('portable cross-app discovery and route contracts', () => {
 
   it('rejects spoofed identity, insecure LAN payloads and credentials in UDP hints', () => {
     expect(validateNativePeerBeacon(beacon, now).ok).toBe(true);
+    expect(validateNativePeerForTarget(beacon, 'app-brwlr', now).ok).toBe(true);
+    expect(validateNativePeerForTarget(beacon, 'app-aiko', now).ok).toBe(false);
     for (const appId of ['https://app.example', 'app/name', 'app?x=1', 'app#hash']) {
       expect(validateNativePeerBeacon({ ...beacon, appId }, now).ok).toBe(false);
     }
@@ -105,23 +108,28 @@ describe('routed invocation authorization boundary and retry safety', () => {
   });
 
   it('blocks authorization downgrades, blind timeout retries and exhausted budgets', () => {
+    const writePolicy = { authoritativeEffect: 'write', durableDeduplication: 'none' } as const;
+    const atomicPolicy = { authoritativeEffect: 'write', durableDeduplication: 'shared_atomic' } as const;
+    const readPolicy = { authoritativeEffect: 'read', durableDeduplication: 'none' } as const;
     const denied = { schemaVersion: 1, resultClass: 'unauthorized', delivery: 'acknowledged', httpStatus: 401 };
     const forbidden = { schemaVersion: 1, resultClass: 'forbidden', delivery: 'acknowledged', httpStatus: 403 };
-    expect(evaluateInvocationFailover(routed, denied, now).mayTryNext).toBe(false);
-    expect(evaluateInvocationFailover(routed, forbidden, now, 'shared_atomic').mayTryNext).toBe(false);
+    expect(evaluateInvocationFailover(routed, denied, now, writePolicy).mayTryNext).toBe(false);
+    expect(evaluateInvocationFailover(routed, forbidden, now, atomicPolicy).mayTryNext).toBe(false);
+    expect(evaluateInvocationFailover(routed, timeout, now).reason).toBe('UNVERIFIED_RETRY_POLICY');
+    expect(evaluateInvocationFailover(routed, timeout, now, readPolicy).reason).toBe('OPERATION_EFFECT_MISMATCH');
     expect(validateInvocationAttempt({ ...unavailability, httpStatus: 401 }).ok).toBe(false);
     expect(validateInvocationAttempt({ ...timeout, delivery: 'not_sent' }).ok).toBe(false);
     expect(validateInvocationAttempt({ ...unavailability, httpStatus: 503 }).ok).toBe(false);
     expect(validateInvocationAttempt({ ...unavailability, delivery: 'uncertain', httpStatus: 200 }).ok).toBe(false);
     expect(validateInvocationAttempt({ ...timeout, httpStatus: 200 }).ok).toBe(false);
-    expect(evaluateInvocationFailover(routed, unavailability, now).mayTryNext).toBe(true);
-    expect(evaluateInvocationFailover(routed, timeout, now)).toEqual({
+    expect(evaluateInvocationFailover(routed, unavailability, now, writePolicy).mayTryNext).toBe(true);
+    expect(evaluateInvocationFailover(routed, timeout, now, writePolicy)).toEqual({
       mayTryNext: false, reason: 'POSSIBLE_DUPLICATE_SIDE_EFFECT',
     });
-    expect(evaluateInvocationFailover(routed, timeout, now, 'shared_atomic').mayTryNext).toBe(true);
-    expect(evaluateInvocationFailover({ ...routed, effect: 'read', idempotencyKey: undefined }, timeout, now).mayTryNext).toBe(true);
-    expect(evaluateInvocationFailover({ ...routed, invocation: { ...invocation, remainingRetries: 0 } }, timeout, now, 'shared_atomic').mayTryNext).toBe(false);
-    expect(evaluateInvocationFailover(routed, timeout, now + 61_000, 'shared_atomic').mayTryNext).toBe(false);
-    expect(evaluateInvocationFailover(routed, { schemaVersion: 1, resultClass: 'application_error', delivery: 'acknowledged', httpStatus: 500 }, now).mayTryNext).toBe(false);
+    expect(evaluateInvocationFailover(routed, timeout, now, atomicPolicy).mayTryNext).toBe(true);
+    expect(evaluateInvocationFailover({ ...routed, effect: 'read', idempotencyKey: undefined }, timeout, now, readPolicy).mayTryNext).toBe(true);
+    expect(evaluateInvocationFailover({ ...routed, invocation: { ...invocation, remainingRetries: 0 } }, timeout, now, atomicPolicy).mayTryNext).toBe(false);
+    expect(evaluateInvocationFailover(routed, timeout, now + 61_000, atomicPolicy).mayTryNext).toBe(false);
+    expect(evaluateInvocationFailover(routed, { schemaVersion: 1, resultClass: 'application_error', delivery: 'acknowledged', httpStatus: 500 }, now, writePolicy).mayTryNext).toBe(false);
   });
 });

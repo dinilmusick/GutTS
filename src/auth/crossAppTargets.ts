@@ -91,6 +91,18 @@ export function validateNativePeerBeacon(input: unknown, nowMs: number): Contrac
   return { ok: true, value: input as NativePeerBeaconV1 };
 }
 
+/** Confirm an untrusted beacon names the requested immutable application. */
+export function validateNativePeerForTarget(
+  input: unknown, expectedAppId: string, nowMs: number,
+): ContractCheck<NativePeerBeaconV1> {
+  const peer = validateNativePeerBeacon(input, nowMs);
+  if (!peer.ok) return peer;
+  if (!contractAppId(expectedAppId) || peer.value.appId !== expectedAppId) {
+    return { ok: false, reason: 'PEER_APPLICATION_ID_MISMATCH' };
+  }
+  return peer;
+}
+
 /**
  * Source MUST be an authenticated, target-scoped registry response.
  * Validation is shape/freshness only, not proof of registry signature or caller grants.

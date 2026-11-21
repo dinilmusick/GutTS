@@ -31,6 +31,11 @@ export interface InvocationAttemptResultV1 {
 
 /** This attestation must come from trusted execution infrastructure, never a caller flag. */
 export type DurableDeduplicationAttestationV1 = 'none' | 'shared_atomic';
+/** Only the trusted execution host can determine the authoritative operation effect. */
+export interface TrustedInvocationRetryPolicyV1 {
+  authoritativeEffect: 'read' | 'write';
+  durableDeduplication: DurableDeduplicationAttestationV1;
+}
 export interface FailoverDecisionV1 {
   mayTryNext: boolean;
   reason: string;
@@ -133,15 +138,24 @@ export function validateInvocationAttempt(input: unknown): ContractCheck<Invocat
  * Luth, grant, workspace and operation at every target. On uncertain delivery,
  * writes may retry ONLY if an authoritative shared atomic dedup store guarantees
  * identical executionId/idempotencyKey/payload/result across deployments.
+ * Both the operation effect and delivery classification must originate from trusted
+ * target registry/transport infrastructure, NEVER from the caller payload.
  */
 export function evaluateInvocationFailover(
   routedInput: unknown, attemptInput: unknown, nowMs: number,
-  trustedDeduplication: DurableDeduplicationAttestationV1 = 'none',
+  trustedPolicy?: TrustedInvocationRetryPolicyV1,
 ): FailoverDecisionV1 {
   const routed = validateRoutedInvocation(routedInput, nowMs);
   if (!routed.ok) return { mayTryNext: false, reason: routed.reason };
   const attempt = validateInvocationAttempt(attemptInput);
   if (!attempt.ok) return { mayTryNext: false, reason: attempt.reason };
+  if (!trustedPolicy || !['read', 'write'].includes(trustedPolicy.authoritativeEffect)
+    || !['none', 'shared_atomic'].includes(trustedPolicy.durableDeduplication)) {
+    return { mayTryNext: false, reason: 'UNVERIFIED_RETRY_POLICY' };
+  }
+  if (trustedPolicy.authoritativeEffect !== routed.value.effect) {
+    return { mayTryNext: false, reason: 'OPERATION_EFFECT_MISMATCH' };
+  }
   const call = routed.value.invocation;
   const result = attempt.value;
   if (result.resultClass === 'unauthorized' || result.resultClass === 'forbidden'
@@ -156,7 +170,7 @@ export function evaluateInvocationFailover(
   }
   if (result.delivery === 'not_sent') return { mayTryNext: true, reason: 'NOT_DISPATCHED' };
   if (routed.value.effect === 'read') return { mayTryNext: true, reason: 'READ_RETRY' };
-  if (trustedDeduplication === 'shared_atomic' && routed.value.idempotencyKey) {
+  if (trustedPolicy.durableDeduplication === 'shared_atomic' && routed.value.idempotencyKey) {
     return { mayTryNext: true, reason: 'SHARED_ATOMIC_DEDUPLICATION_REQUIRED' };
   }
   return { mayTryNext: false, reason: 'POSSIBLE_DUPLICATE_SIDE_EFFECT' };

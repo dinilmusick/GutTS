@@ -54,8 +54,8 @@ export class ApplicationAuthClient {
     // Never use the email redirect as the Google entry point.
     const next = returnTo || (typeof window !== 'undefined'
       ? window.location.pathname + window.location.search + window.location.hash : '/');
-    if (!next.startsWith('/') || next.startsWith('//') || next.includes('\\\\') ||
-        /[\\x00-\\x1F\\x7F]/.test(next)) {
+    if (!next.startsWith('/') || next.startsWith('//') || next.includes('\\') ||
+        /[\x00-\x1F\x7F]/.test(next)) {
       throw new LuthAuthError('INVALID_AUTH_RETURN_PATH', 'Login return path must be local.');
     }
     this.navigate(this.basePath + '/start?method=google&next=' + encodeURIComponent(next));

@@ -50,11 +50,70 @@ export class ApplicationAuthClient {
   }
 
   public signInWithGoogle(returnTo?: string): void {
-    this.startSignIn(returnTo);
+    // Method is a signed authorization hint chosen by the OAuth BFF.
+    // Never use the email redirect as the Google entry point.
+    const next = returnTo || (typeof window !== 'undefined'
+      ? window.location.pathname + window.location.search + window.location.hash : '/');
+    if (!next.startsWith('/') || next.startsWith('//') || next.includes('\\\\') ||
+        /[\\x00-\\x1F\\x7F]/.test(next)) {
+      throw new LuthAuthError('INVALID_AUTH_RETURN_PATH', 'Login return path must be local.');
+    }
+    this.navigate(this.basePath + '/start?method=google&next=' + encodeURIComponent(next));
   }
 
   public signInWithEmail(returnTo?: string): void {
     this.startSignIn(returnTo);
+  }
+
+
+  /**
+   * First-party email form: Luth verifies credentials and signs the OAuth
+   * continuation. The local Kloks BFF completes PKCE and sets only its opaque
+   * HttpOnly application cookie. No browser token/password persistence.
+   */
+  private async submitEmail(
+    operation: 'sign-in' | 'sign-up',
+    payload: { email: string; password: string; name?: string },
+  ): Promise<LuthSessionResult> {
+    let response: Response;
+    try {
+      response = await this.fetcher(this.basePath + '/email/' + operation, {
+        method: 'POST',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      throw new LuthAuthError('AUTH_EMAIL_UNAVAILABLE', 'Email authentication service is unavailable.', 503);
+    }
+    if (!response.ok) {
+      const code = await response.json().then((value: unknown) =>
+        value && typeof value === 'object' && 'error' in value &&
+        typeof value.error === 'string' ? value.error : 'AUTH_EMAIL_REJECTED',
+      ).catch(() => 'AUTH_EMAIL_REJECTED');
+      const message = code === 'INVALID_EMAIL_CREDENTIALS'
+        ? 'Incorrect email address or password.'
+        : code === 'ACCOUNT_CREATION_REJECTED'
+          ? 'Unable to create this account. Check the details and try again.'
+          : code === 'OAUTH_INTERACTIVE_CONSENT_REQUIRED'
+            ? 'This application requires additional consent through Luth.'
+            : 'Email authentication could not be completed.';
+      throw new LuthAuthError(code, message, response.status);
+    }
+    const data = await response.json() as { success?: boolean };
+    if (data?.success !== true) {
+      throw new LuthAuthError('AUTH_EMAIL_INVALID_RESPONSE', 'Email authentication was not confirmed.');
+    }
+    return this.getSession();
+  }
+
+  public signInWithEmailCredentials(input: { email: string; password: string }): Promise<LuthSessionResult> {
+    return this.submitEmail('sign-in', input);
+  }
+
+  public signUpWithEmailCredentials(input: { name: string; email: string; password: string }): Promise<LuthSessionResult> {
+    return this.submitEmail('sign-up', input);
   }
 
   public async getSession(): Promise<LuthSessionResult> {
